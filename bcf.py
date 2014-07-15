@@ -1,5 +1,5 @@
 # Small wrapper for bcftools 2.0 - for querying vcf data quickly and easily.
-import os, subprocess, uuid, re
+import os, subprocess, re
 import vcf.filters
 from collections import OrderedDict
 
@@ -15,7 +15,7 @@ class bcf(file):
         self.samples = filter(len,subprocess.Popen("bcftools query -l %s" % self.file, shell=True, stdout=subprocess.PIPE).communicate()[0].split("\n"))
 
         # Meta Data
-        self.meta = OrderedDict(re.compile(r'''^##(?P<key>[^<#]+?)=(?P<val>[^<#]+$)''', re.M).findall(self.header))
+        self.metadata = OrderedDict(re.compile(r'''^##(?P<key>[^<#]+?)=(?P<val>[^<#]+$)''', re.M).findall(self.header))
 
         # Contigs
         self.contigs = [x.split(",") for x in re.compile(r'''^##contig=<(?P<data>.*)>''', re.M).findall(self.header)]
@@ -52,6 +52,9 @@ class bcf(file):
         self.ops += ["bcftools view  -r %s:%s-%s %s" % (chrom, start, end, self.file)]
         return self
 
+    def nVariants(self):
+        return subprocess.Popen("bcftools view %s | grep -v '^#' | wc -l" % (self.file), shell=True, stdout=subprocess.PIPE).communicate()
+
     def include(self,depth):
         self.ops += ["bcftools filter --include 'DP<%s'" % (depth)]
         return self
@@ -67,11 +70,11 @@ class bcf(file):
 
 
 
-x = bcf("vcf/mmp.vcf.gz")
+x = bcf("../geneticDB/vcf/mmp.vcf.gz")
 
-print x.file
-print x.samples
-print x.metadata["fileformat"]
+
+print x.nVariants()
+
 
 
 
