@@ -22,29 +22,32 @@ class fastq(object):
     def __init__(self, fq1_filename, fq2_filename = None):
         self.fq1_filename = fq1_filename
         self.fq1 = self.extract_fastq_info(fq1_filename)
+        self.fq_set = [self.fq1_filename]
         if fq2_filename is not None:
             self.fq2_filename = fq2_filename
             self.fq2 = self.extract_fastq_info(fq2_filename)
+            self.fq_set += [self.fq2_filename]
         
     def extract_fastq_info(self, fq):
         """
         This function will extract information from the header lines of a demultiplexed fastq. Requires gzip to be imported.
         """
+        line = {}
         if mimetypes.guess_type(fq)[1] == 'gzip':
+            line["filetype"] = "gzip"
             f = gzip.open(fq, 'rb')
         else:
+            line["filetype"] = "text"
             f = open(fq, 'rb')
         header_lines = [x.replace("\n","") for k,x in enumerate(f.readlines(10000)) if k%4==0]
         c = 0
         for heading in header_lines:
             c += 1
             l = re.split(r'(\:|#| )',heading)
-            line = {}
             index_set = []
             if len(l) == 11:
                 line["instrument"] = l[0]
-                line["flowcell_lane"] = l[2]
-                line["flowcell_tile"] = l[4]
+                line["flowcell_lane"] = int(l[2])
                 try:
                     line["pair"] = l[10].split("/")[1]
                     index_set.append(l[10].split("/")[0])
@@ -55,10 +58,7 @@ class fastq(object):
                 line["run_id"] = l[2]
                 line["flowcell_id"] = l[4]
                 line["flowcell_lane"] = l[6]
-                line["flowcell_tile"] = l[8]
-                line["x_coord"] = l[10]
-                line["y_coord"] = l[12]
-                line["pair"] = l[14]
+                line["pair"] = int(l[14])
                 line["filtered"] = l[16]
                 line["control_bits"] = l[16]
                 line["index"] = l[20]
@@ -70,28 +70,28 @@ class fastq(object):
         line["md5"] = md5(fq)
         return line
  
+    def get_fastq_stats(self, fq_name):
+        """
+            This function will extract addition information from a fastq: Number of reads, unique reads, etc.
+        """
+        fq = getattr(self, fq_name)
+        if fq["filetype"] == "gzip":
+            command = "gunzip -c %s | awk -v filename=%s '((NR-2)%%4==0){read=$1; total++; count[read]++}END{for(read in count){if(!max||count[read]>max) {max=count[read];maxRead=read};if(count[read]==1){unique++}};print filename,total,unique,unique*100/total,maxRead,count[maxRead],count[maxRead]*100/total}'" % (fq["fastq_filename"], fq["fastq_filename"])
+        else:
+            command = "awk -v filename=%s '((NR-2)%%4==0){read=$1; total++; count[read]++}END{for(read in count){if(!max||count[read]>max) {max=count[read];maxRead=read};if(count[read]==1){unique++}};print filename,total,unique,unique*100/total,maxRead,count[maxRead],count[maxRead]*100/total}' %s" % (fq["fastq_filename"], fq["fastq_filename"])
+        # Get stat results
+        sr = subprocess.check_output(command, shell=True).strip().split(" ")
+        fq["Number of Reads"] = sr[1]
+        fq["Unique Reads"] = int(sr[2])
+        fq["Frequency of Unique Reads"] = float(sr[3])
+        fq["Most Abundant Sequence"] = sr[4]
+        fq["Number of Times Most Abundant Sequence Occcurs"] = int(sr[5])
+        fq["Frequency of Most Abundant Sequence"] = sr[6]
+
     def fastq_stats(self):
-        fq_set = [self.fq1_filename, self.fq2_filename]
-        try:
-            # If the user has gnu parallel or xargs, both fastqs can be run at the same time.
-            command = "parallel \"gunzip -c {} | awk -v filename={} '((NR-2)%%4==0){read=\$1; total++; count[read]++}END{for(read in count){if(!max||count[read]>max) {max=count[read];maxRead=read};if(count[read]==1){unique++}};print filename,total,unique,unique*100/total,maxRead,count[maxRead],count[maxRead]*100/total}'\" ::: %s" % ' '.join(fq_set)
-            # Parse Stats
-            fq_stat_results = [x.split("\t") for x in subprocess.check_output(command, shell=True).strip().split("\n")]
-            for fq in fq_stat_results:
-                fqstats[fq[0]] = {}
-            self.fq_statistics = {
-                "Number of Reads": fq_stat_results[1],
-                "Number of Reads": fq_stat_results[1],
-                "Number of Reads": fq_stat_results[1],
-                "Number of Reads": fq_stat_results[1],
-                "Number of Reads": fq_stat_results[1],
-
-            }
-        except:
-            fq1_stats = subprocess.check_output("gunzip -c %s | awk -v filename=%s '((NR-2)%%4==0){read=$1; total++; count[read]++}END{for(read in count){if(!max||count[read]>max) {max=count[read];maxRead=read};if(count[read]==1){unique++}};print filename,total,unique,unique*100/total,maxRead,count[maxRead],count[maxRead]*100/total}'" % (self.fq1_filename, self.fq1_filename), shell=True)
-            fq2_stats = subprocess.check_output("gunzip -c %s | awk -v filename=%s '((NR-2)%%4==0){read=$1; total++; count[read]++}END{for(read in count){if(!max||count[read]>max) {max=count[read];maxRead=read};if(count[read]==1){unique++}};print filename,total,unique,unique*100/total,maxRead,count[maxRead],count[maxRead]*100/total}'" % (self.fq2_filename, self.fq2_filename), shell=True)
-        #return subprocess.check_output("parallel \"gunzip -c {} | awk -v filename={} '((NR-2)%%4==0){read=\$1; total++; count[read]++}END{for(read in count){if(!max||count[read]>max) {max=count[read];maxRead=read};if(count[read]==1){unique++}};print filename,total,unique,unique*100/total,maxRead,count[maxRead],count[maxRead]*100/total}'\" ::: %s" % ' '.join(fq_set))
-
+        self.get_fastq_stats("fq1")
+        if len(self.fq_set) == 2:
+            self.get_fastq_stats("fq2")
 
 def format_options(options):
     formatted_options = {}
@@ -187,10 +187,10 @@ class bcf(file):
 
 
 
-x = fastq("BGI1-RET2-test1-6b0f1-1.fq", "BGI2-RET2-test1-f0534-1.fq.gz")
+x = fastq("BGI2-RET2-test1-f0534-1.fq.gz", "BGI1-RET2-test1-6b0f1-1.fq")
 
 print x.fq1
-
+print x.fastq_stats()
 print x.fq2
 
 #x = bcf("04_mmp_strains.txt.vcf.gz")
