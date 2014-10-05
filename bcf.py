@@ -1,14 +1,18 @@
 # Small wrapper for bcftools 2.0 - for querying vcf data quickly and easily.
-import os, subprocess, re, glob, hashlib, gzip
+import os, subprocess, re, glob, hashlib, gzip, mimetypes
+from itertools import groupby as g
 from collections import OrderedDict
 
 
 def md5(filename):
     """Performs an md5 digest on a given file"""
     try:
-        return subprocess.check_output(['md5sum',filename], shell=True).replace("\n","")
+        subprocess.check_output("which md5sum", shell=True) # Checks to see if md5sum exists.
+        md5_command = "md5sum"
     except:
-        return subprocess.check_output(['md5',filename], shell=True).replace("\n","")
+        md5_command = "md5"
+    md5_result = subprocess.Popen('%s %s' % (md5_command, filename), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()[0].replace("\n","")
+    return md5_result.split("=")[1].strip()
  
 
 def most_common(L):
@@ -21,45 +25,47 @@ class fastq(object):
         if fq2_filename is not None:
             self.fq2_filename = fq2_filename
             self.fq2 = self.extract_fastq_info(fq2_filename)
- 
+        
     def extract_fastq_info(self, fq):
         """
         This function will extract information from the header lines of a demultiplexed fastq. Requires gzip to be imported.
         """
-        f = gzip.open(fq, 'rb')
-        header_lines = [x.replace("\n","") for x in f.readlines(10000) if x.startswith("@")]
- 
+        if mimetypes.guess_type(fq)[1] == 'gzip':
+            f = gzip.open(fq, 'rb')
+        else:
+            f = open(fq, 'rb')
+        header_lines = [x.replace("\n","") for k,x in enumerate(f.readlines(10000)) if k%4==0]
+        c = 0
         for heading in header_lines:
-                l = re.split(r'(\:|#| )',heading)
-                line = {}
-                index_set = []
-                if len(l) == 11:
-                    line["instrument"] = l[0]
-                    line["flowcell_lane"] = l[2]
-                    line["flowcell_tile"] = l[4]
-                    line["x_coord"] = l[6]
-                    line["y_coord"] = l[8]
-                    try:
-                        line["pair"] = l[10].split("/")[1]
-                        index_set.append(l[10].split("/")[0])
-                    except:
-                        pass
-                elif len(l) == 21:
-                    line["instrument"] = l[0]
-                    line["run_id"] = l[2]
-                    line["flowcell_id"] = l[4]
-                    line["flowcell_lane"] = l[6]
-                    line["flowcell_tile"] = l[8]
-                    line["x_coord"] = l[10]
-                    line["y_coord"] = l[12]
-                    line["pair"] = l[14]
-                    line["filtered"] = l[16]
-                    line["control_bits"] = l[16]
-                    line["index"] = l[20]
-                    index_set.append(l[20])
-                else:
-                    print "error", l
-                line["index"] = most_common(index_set)
+            c += 1
+            l = re.split(r'(\:|#| )',heading)
+            line = {}
+            index_set = []
+            if len(l) == 11:
+                line["instrument"] = l[0]
+                line["flowcell_lane"] = l[2]
+                line["flowcell_tile"] = l[4]
+                try:
+                    line["pair"] = l[10].split("/")[1]
+                    index_set.append(l[10].split("/")[0])
+                except:
+                    pass
+            elif len(l) == 21:
+                line["instrument"] = l[0]
+                line["run_id"] = l[2]
+                line["flowcell_id"] = l[4]
+                line["flowcell_lane"] = l[6]
+                line["flowcell_tile"] = l[8]
+                line["x_coord"] = l[10]
+                line["y_coord"] = l[12]
+                line["pair"] = l[14]
+                line["filtered"] = l[16]
+                line["control_bits"] = l[16]
+                line["index"] = l[20]
+                index_set.append(l[20])
+            else:
+                print "error", l
+            line["index"] = most_common(index_set)
         line["fastq_filename"] = fq
         line["md5"] = md5(fq)
         return line
@@ -67,12 +73,19 @@ class fastq(object):
     def fastq_stats(self):
         fq_set = [self.fq1_filename, self.fq2_filename]
         try:
-            # If the user has gnu parallel, both fastqs can be run at the same time.
+            # If the user has gnu parallel or xargs, both fastqs can be run at the same time.
             command = "parallel \"gunzip -c {} | awk -v filename={} '((NR-2)%%4==0){read=\$1; total++; count[read]++}END{for(read in count){if(!max||count[read]>max) {max=count[read];maxRead=read};if(count[read]==1){unique++}};print filename,total,unique,unique*100/total,maxRead,count[maxRead],count[maxRead]*100/total}'\" ::: %s" % ' '.join(fq_set)
             # Parse Stats
-            fqstats = [x.split("\t") for x in subprocess.check_output(command, shell=True).strip().split("\n")]
+            fq_stat_results = [x.split("\t") for x in subprocess.check_output(command, shell=True).strip().split("\n")]
+            for fq in fq_stat_results:
+                fqstats[fq[0]] = {}
             self.fq_statistics = {
-                "Number of Reads": 1
+                "Number of Reads": fq_stat_results[1],
+                "Number of Reads": fq_stat_results[1],
+                "Number of Reads": fq_stat_results[1],
+                "Number of Reads": fq_stat_results[1],
+                "Number of Reads": fq_stat_results[1],
+
             }
         except:
             fq1_stats = subprocess.check_output("gunzip -c %s | awk -v filename=%s '((NR-2)%%4==0){read=$1; total++; count[read]++}END{for(read in count){if(!max||count[read]>max) {max=count[read];maxRead=read};if(count[read]==1){unique++}};print filename,total,unique,unique*100/total,maxRead,count[maxRead],count[maxRead]*100/total}'" % (self.fq1_filename, self.fq1_filename), shell=True)
@@ -89,6 +102,10 @@ def format_options(options):
             formatted_options['-' + k] = v
         else:
             formatted_options['--' + k] = v
+    # Wrap filters (include/exclude) in quotes
+    for k,v in formatted_options.items():
+        if k in ['--include','-i','--exclude','-e']:
+            formatted_options[k] = "'%s'" % v
     return formatted_options
 
 class bcf(file):
@@ -137,6 +154,7 @@ class bcf(file):
             >''', re.VERBOSE).findall(self.header)
 
     def filter(self, options):
+        options["-O"] = "u" # Output in uncompressed bcf
         options = ' '.join([k + " " + v for k,v in format_options(options).items()])
         self.actions += ["bcftools filter %s" % (options)]
         return self
@@ -149,28 +167,33 @@ class bcf(file):
         self.actions += ["bcftools view  -r %s:%s-%s %s" % (chrom, start, end, self.file)]
         return self
 
-    def nVariants(self):
-        return subprocess.Popen("bcftools view %s | grep -v '^#' | wc -l" % (self.file), shell=True, stdout=subprocess.PIPE).communicate()
+    def out(self, out_filename, type="bcf", version="4.1"):
+        # If version is 4.1, attempt to fix bcf/vcf so it is viewable in IGV.
 
-    def include(self,depth):
-        self.actions += ["bcftools filter --include 'DP<%s'" % (depth)]
-        return self
-
-    def out(self, out_filename, type="bcf"):
+        if type is None:
+            if out_filename.endswith(".bcf"):
+                output_options = ""
+                {'.bcf':"-O b", '.vcf' : "-O v", '.vcf.gz' : "-O z"}
+        else:
+            self.actions += ["bcftools view -O b"]
         # Output types
         actions = ' | '.join(self.actions)
         
-        out_command = "bcftools view %s | %s > %s" % (self.filename, actions, out_filename)
+        out_command = "bcftools view -O u %s | %s > %s" % (self.filename, actions, out_filename)
         print out_command
-        return subprocess.check_output("bcftools view -O b %s | %s > %s" % (self.filename, actions, out_filename))
+        return subprocess.check_output("bcftools view -O u %s | %s > %s" % (self.filename, actions, out_filename), shell = True)
 
 
 
 
 
+x = fastq("BGI1-RET2-test1-6b0f1-1.fq", "BGI2-RET2-test1-f0534-1.fq.gz")
 
+print x.fq1
 
-x = bcf("04_mmp_strains.txt.vcf.gz")
+print x.fq2
+
+#x = bcf("04_mmp_strains.txt.vcf.gz")
 print x.filter({"include":'%QUAL>30', "soft-filter":"MaxQualityFail"})
 print x.filter({"include":'DP>3', "soft-filter": "Minimum-Depth"})
 print x.actions
