@@ -209,19 +209,20 @@ class bcf(file):
                 output_options = ""
                 {'.bcf':"-O b", '.vcf' : "-O v", '.vcf.gz' : "-O z"}
         else:
-            self.actions += ["bcftools view -O b"]
+            self.actions += ["bcftools view -O z"]
+
+        if version == 4.1:
+            self.actions += ["bcftools view | grep -v '##INFO' | bcftools view -O z"]
+
         # Output types
         actions = ' | '.join(self.actions)
+
         
-        out_command = "bcftools view -O u %s | %s > %s" % (self.filename, actions, out_filename)
-        subprocess.check_output(out_command, shell=True)
-
-
-
-
+        subprocess.check_output("bcftools view -O u %s | %s > %s" % (self.filename, actions, out_filename), shell=True)
+        subprocess.check_output("bcftools index %s" % out_filename, shell=True)
 
 x = bcf("JU1440.dp.bcf")
 x.filter({"include":'%QUAL>30', "soft-filter":"MaxQualityFail"})
-x.filter({"include":'DP<3', "soft-filter": "MinimumDepth"})
-x.out("fixed.bcf", "bcf")
+x.filter({"include":'DP>3', "s": "MinimumDepth"})
+x.out("fixed.vcf.gz", "bcf")
 
