@@ -1,5 +1,5 @@
 # Small wrapper for bcftools 2.0 - for querying vcf data quickly and easily.
-import os, subprocess, re, glob, hashlib, gzip, mimetypes
+import os, subprocess, re, glob, hashlib, gzip, mimetypes, tempfile
 from itertools import groupby as g
 from collections import OrderedDict
 
@@ -95,7 +95,11 @@ class fastq(object):
 
 def format_options(options):
     formatted_options = {}
+    # Force simple specification of some options for added functionality.
+    simplified_ops = {"soft-filter": "-s"}
     for k,v in options.items():
+        if k.replace("--","") in simplified_ops.keys():
+            k = simplified_ops[k]
         if k.startswith("-"):
             formatted_options[k] = v
         elif len(k) == 1:
@@ -114,10 +118,15 @@ class bcf(file):
         self.filename = filename
         self.md5_digest = md5(filename)
         self.actions = []
+        self.header_add_lines = []
         self.header = subprocess.Popen("bcftools view -h %s" % self.filename, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
-        if self.header[1].startswith("Warning: The index file is older than the data file"):
+        # Fix index issues:
+        old_index = self.header[1].startswith("Warning: The index file is older than the data file")
+        no_index_file = os.path.isfile(filename + ".csi") == False
+        if old_index or no_index_file:
             # Attempt to re-index if the index is older.
             subprocess.check_output("bcftools index -f %s" % self.filename, shell=True)
+            # Remove old indices.
             if os.path.isfile(self.filename + '.tbi'):
                 os.remove(self.filename + ".tbi")
         self.header = self.header[0]
@@ -153,9 +162,12 @@ class bcf(file):
             Description="(?P<desc>.*)"
             >''', re.VERBOSE).findall(self.header)
 
-    def filter(self, options):
+    def filter(self, options, soft_filter_description=None):
         options["-O"] = "u" # Output in uncompressed bcf
-        options = ' '.join([k + " " + v for k,v in format_options(options).items()])
+        options = format_options(options)
+        # If a soft-filter is used, add the description to the header.
+        self.header_add_lines += ["##FILTER=<ID=%s,Description='%s'>\n" % (options["-s"], soft_filter_description)]
+        options = ' '.join([k + " " + v for k,v in options.items()])
         self.actions += ["bcftools filter %s" % (options)]
         return self
 
@@ -167,8 +179,21 @@ class bcf(file):
         self.actions += ["bcftools view  -r %s:%s-%s %s" % (chrom, start, end, self.file)]
         return self
 
-    def out(self, out_filename, type="bcf", version="4.1"):
+    def out(self, out_filename, type="bcf", version=4.1):
+        # Re-header
+        self.header = self.header.split("\n")
         # If version is 4.1, attempt to fix bcf/vcf so it is viewable in IGV.
+        if version == 4.1:
+            new_header = tempfile.NamedTemporaryFile()
+            self.header = self.header.split("\n")
+            self.header.insert(1, self.header_add_lines)
+            print self.header
+            print new_header
+            # Insert Filter Lines
+            self.header = self.header.replace("##fileformat=VCFv4.2","##fileformat=VCFv4.1")
+
+            new_header.write(self.header)
+            self.actions += ["bcftools reheader -h %s" % new_header.name]
 
         if type is None:
             if out_filename.endswith(".bcf"):
@@ -187,16 +212,10 @@ class bcf(file):
 
 
 
-x = fastq("BGI2-RET2-test1-f0534-1.fq.gz", "BGI1-RET2-test1-6b0f1-1.fq")
-
-print x.fq1
-print x.fastq_stats()
-print x.fq2
-
-#x = bcf("04_mmp_strains.txt.vcf.gz")
+x = bcf("JU1440.dp.bcf")
 print x.filter({"include":'%QUAL>30', "soft-filter":"MaxQualityFail"})
 print x.filter({"include":'DP>3', "soft-filter": "Minimum-Depth"})
-print x.actions
 
-x.out("fixed", "bcf")
+
+x.out("fixed.bcf", "bcf")
 
