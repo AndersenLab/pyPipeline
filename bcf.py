@@ -162,11 +162,11 @@ class bcf(file):
             Description="(?P<desc>.*)"
             >''', re.VERBOSE).findall(self.header)
 
-    def filter(self, options, soft_filter_description=None):
+    def filter(self, options, soft_filter_description=""):
         options["-O"] = "u" # Output in uncompressed bcf
         options = format_options(options)
         # If a soft-filter is used, add the description to the header.
-        self.header_add_lines += ["##FILTER=<ID=%s,Description='%s'>\n" % (options["-s"], soft_filter_description)]
+        self.header_add_lines += ["##FILTER=<ID=%s,Description=\"%s\">" % (options["-s"], soft_filter_description)]
         options = ' '.join([k + " " + v for k,v in options.items()])
         self.actions += ["bcftools filter %s" % (options)]
         return self
@@ -180,20 +180,29 @@ class bcf(file):
         return self
 
     def out(self, out_filename, type="bcf", version=4.1):
-        # Re-header
+        #===================#
+        # Header Operations #
+        #===================#
+
         self.header = self.header.split("\n")
+        for l in self.header_add_lines:
+            self.header.insert(1, l)
+
         # If version is 4.1, attempt to fix bcf/vcf so it is viewable in IGV.
         if version == 4.1:
-            new_header = tempfile.NamedTemporaryFile()
-            self.header = self.header.split("\n")
-            self.header.insert(1, self.header_add_lines)
-            print self.header
-            print new_header
-            # Insert Filter Lines
-            self.header = self.header.replace("##fileformat=VCFv4.2","##fileformat=VCFv4.1")
+            self.header[0] = "##fileformat=VCFv4.1"
 
-            new_header.write(self.header)
-            self.actions += ["bcftools reheader -h %s" % new_header.name]
+        # Write out new header
+        tmp_header = tempfile.NamedTemporaryFile()
+        self.header = '\n'.join(self.header).strip()
+        tmp_header.write(self.header)
+        tmp_header.flush() # Flush out new header
+
+        #====================================#
+        # Add filters, reheader, annotations #
+        #====================================#
+
+        self.actions += ["bcftools reheader -h %s" % tmp_header.name]
 
         if type is None:
             if out_filename.endswith(".bcf"):
@@ -205,17 +214,14 @@ class bcf(file):
         actions = ' | '.join(self.actions)
         
         out_command = "bcftools view -O u %s | %s > %s" % (self.filename, actions, out_filename)
-        print out_command
-        return subprocess.check_output("bcftools view -O u %s | %s > %s" % (self.filename, actions, out_filename), shell = True)
+        subprocess.check_output(out_command, shell=True)
 
 
 
 
 
 x = bcf("JU1440.dp.bcf")
-print x.filter({"include":'%QUAL>30', "soft-filter":"MaxQualityFail"})
-print x.filter({"include":'DP>3', "soft-filter": "Minimum-Depth"})
-
-
+x.filter({"include":'%QUAL>30', "soft-filter":"MaxQualityFail"})
+x.filter({"include":'DP<3', "soft-filter": "MinimumDepth"})
 x.out("fixed.bcf", "bcf")
 
