@@ -116,6 +116,7 @@ class bcf(file):
     def __init__(self, filename):
         # Start by storing basic information about the vcf/bcf and checking that an index exists.
         self.filename = filename
+        self.filetype = os.path.splitext(filename)
         self.md5_digest = md5(filename)
         self.actions = []
         self.header_add_lines = []
@@ -123,8 +124,8 @@ class bcf(file):
         # Fix index issues:
         old_index = self.header[1].startswith("Warning: The index file is older than the data file")
         no_index_file = os.path.isfile(filename + ".csi") == False
-        if old_index or no_index_file:
-            # Attempt to re-index if the index is older.
+        if old_index or no_index_file and self.filetype in [".gz",".bcf"]:
+            # Attempt to re-index if the index is older
             subprocess.check_output("bcftools index -f %s" % self.filename, shell=True)
             # Remove old indices.
             if os.path.isfile(self.filename + '.tbi'):
@@ -161,6 +162,23 @@ class bcf(file):
             Type=(?P<type>.+),
             Description="(?P<desc>.*)"
             >''', re.VERBOSE).findall(self.header)
+
+    def variant_dict(self, lines=10):
+        variant_set = []
+        p = subprocess.Popen('bcftools view -H %s' % (self.filename), shell=True, stdout=subprocess.PIPE, bufsize=1)
+        for line in iter(p.stdout.readline, b''):
+            variant = {}
+            line = line.strip().split("\t")
+            variant["CHROM"] = line[0]
+            variant["POS"] = int(line[1])
+            variant["ID"] = line[2]
+            variant["REF"] = line[3]
+            variant["ALT"] = line[4]
+            variant_set.append(variant)
+            print variant
+
+        p.communicate() 
+        
 
     def filter(self, options, soft_filter_description=""):
         options["-O"] = "u" # Output in uncompressed bcf
@@ -214,7 +232,7 @@ class bcf(file):
 
         # filetype
         file_output_types = {".bcf" : "b", ".gz" : "z", ".vcf" : "v"}
-        filetype = file_ouput_types[os.path.splitext(out_filename)[1]]
+        filetype = file_output_types[os.path.splitext(out_filename)[1]]
         self.actions += ["bcftools view -O %s" % filetype]
 
         # Output types
@@ -222,6 +240,7 @@ class bcf(file):
 
         print "bcftools view -O u %s | %s > %s" % (self.filename, actions, out_filename)
         subprocess.check_output("bcftools view -O u %s | %s > %s" % (self.filename, actions, out_filename), shell=True)
-        subprocess.check_output("bcftools index %s" % out_filename, shell=True)
+        if filetype in [".bcf", ".gz"]:
+            subprocess.check_output("bcftools index %s" % out_filename, shell=True)
 
 
