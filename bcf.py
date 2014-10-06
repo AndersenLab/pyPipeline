@@ -178,7 +178,13 @@ class bcf(file):
         self.actions += ["bcftools view -O u -t {region}".format(region=region)]
         return self
 
-    def out(self, out_filename, type="bcf", version=None):
+    def snpeff(self, annotation_db):
+        # Apply snpeff annotations
+        self.actions += ["bcftools view | snpeff eff %s" % annotation_db]
+        self.header_add_lines += ["##INFO=<ID=EFF,Description=\"SNPEFF Annotation\">"]
+        return self
+
+    def out(self, out_filename, version=None):
         #===================#
         # Header Operations #
         #===================#
@@ -203,15 +209,13 @@ class bcf(file):
 
         self.actions += ["bcftools reheader -h %s" % tmp_header.name]
 
-        if type is None:
-            if out_filename.endswith(".bcf"):
-                output_options = ""
-                {'.bcf':"-O b", '.vcf' : "-O v", '.vcf.gz' : "-O z"}
-        else:
-            self.actions += ["bcftools view -O z"]
-
         if version == 4.1:
             self.actions += ["bcftools view | grep -v '##INFO' | bcftools view -O z"]
+
+        # filetype
+        file_output_types = {".bcf" : "b", ".gz" : "z", ".vcf" : "v"}
+        filetype = file_ouput_types[os.path.splitext(out_filename)[1]]
+        self.actions += ["bcftools view -O %s" % filetype]
 
         # Output types
         actions = ' | '.join(self.actions)
@@ -220,9 +224,4 @@ class bcf(file):
         subprocess.check_output("bcftools view -O u %s | %s > %s" % (self.filename, actions, out_filename), shell=True)
         subprocess.check_output("bcftools index %s" % out_filename, shell=True)
 
-x = bcf("BGI2-RET1.txt.vcf.gz")
-x.filter({"include":'%QUAL>30', "soft-filter":"MaxQualityFail"})
-x.filter({"include":'DP>3', "s": "MinimumDepth"})
-x.region("chrIII:10000-2000000")
-x.out("fixed.vcf.gz", "bcf")
 
