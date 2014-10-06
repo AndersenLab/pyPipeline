@@ -179,7 +179,7 @@ class bcf(file):
         self.actions += ["bcftools view  -r %s:%s-%s %s" % (chrom, start, end, self.file)]
         return self
 
-    def out(self, out_filename, type="bcf", version=4.1):
+    def out(self, out_filename, version=4.1):
         #===================#
         # Header Operations #
         #===================#
@@ -206,13 +206,20 @@ class bcf(file):
 
         if type is None:
             if out_filename.endswith(".bcf"):
-                output_options = ""
-                {'.bcf':"-O b", '.vcf' : "-O v", '.vcf.gz' : "-O z"}
+                # Compressed BCF
+                self.actions += ["bcftools view -O b"]
+            elif out_filename.endswith(".vcf.gz"):
+                # Compressed VCF
+                self.actions += ["bcftools view -O -z"]
+            elif out_filename.endswith(".vcf"):
+                # Uncompressed VCF
+                self.actions += ["bcftools view -O -v"]
+                
         else:
             self.actions += ["bcftools view -O z"]
 
         if version == 4.1:
-            self.actions += ["bcftools view | grep -v '##INFO' | bcftools view -O z"]
+            self.actions += ["bcftools view | grep -v '##INFO' | bcftools view -O v"]
 
         # Output types
         actions = ' | '.join(self.actions)
@@ -221,8 +228,8 @@ class bcf(file):
         subprocess.check_output("bcftools view -O u %s | %s > %s" % (self.filename, actions, out_filename), shell=True)
         subprocess.check_output("bcftools index %s" % out_filename, shell=True)
 
-x = bcf("JU1440.dp.bcf")
+x = bcf("NIC276.nofilter.group.bcf")
 x.filter({"include":'%QUAL>30', "soft-filter":"MaxQualityFail"})
 x.filter({"include":'DP>3', "s": "MinimumDepth"})
-x.out("fixed.vcf.gz", "bcf")
+x.out("NIC276.vcf", version = 4.2)
 
