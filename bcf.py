@@ -174,12 +174,11 @@ class bcf(file):
     def stats(self):
         return subprocess.check_output("bcftools stats --samples - %s" % self.filename, stderr=subprocess.STDOUT, shell=True)
 
-    def region(self,chrom,start,end):
-        print "bcftools filter -H -r %s:%s-%s %s" % (chrom, start, end, self.file)
-        self.actions += ["bcftools view  -r %s:%s-%s %s" % (chrom, start, end, self.file)]
+    def region(self, region):
+        self.actions += ["bcftools view -O u -t {region}".format(region=region)]
         return self
 
-    def out(self, out_filename, type="bcf", version=4.1):
+    def out(self, out_filename, type="bcf", version=None):
         #===================#
         # Header Operations #
         #===================#
@@ -217,12 +216,13 @@ class bcf(file):
         # Output types
         actions = ' | '.join(self.actions)
 
-        
+        print "bcftools view -O u %s | %s > %s" % (self.filename, actions, out_filename)
         subprocess.check_output("bcftools view -O u %s | %s > %s" % (self.filename, actions, out_filename), shell=True)
         subprocess.check_output("bcftools index %s" % out_filename, shell=True)
 
-x = bcf("JU1440.dp.bcf")
+x = bcf("BGI2-RET1.txt.vcf.gz")
 x.filter({"include":'%QUAL>30', "soft-filter":"MaxQualityFail"})
 x.filter({"include":'DP>3', "s": "MinimumDepth"})
+x.region("chrIII:10000-2000000")
 x.out("fixed.vcf.gz", "bcf")
 
