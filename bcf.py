@@ -174,11 +174,19 @@ class bcf(file):
     def stats(self):
         return subprocess.check_output("bcftools stats --samples - %s" % self.filename, stderr=subprocess.STDOUT, shell=True)
 
-    def region(self,chrom,start,end):
-        print "bcftools filter -H -r %s:%s-%s %s" % (chrom, start, end, self.file)
-        self.actions += ["bcftools view  -r %s:%s-%s %s" % (chrom, start, end, self.file)]
+    def region(self, region):
+        self.actions += ["bcftools view -O u -t {region}".format(region=region)]
         return self
 
+<<<<<<< HEAD
+=======
+    def snpeff(self, annotation_db):
+        # Apply snpeff annotations
+        self.actions += ["bcftools view | snpeff eff %s" % annotation_db]
+        self.header_add_lines += ["##INFO=<ID=EFF,Description=\"SNPEFF Annotation\">"]
+        return self
+
+>>>>>>> 713bf280620a5da0734ea6df4103391447cd7a89
     def out(self, out_filename, version=None):
         #===================#
         # Header Operations #
@@ -204,6 +212,7 @@ class bcf(file):
 
         self.actions += ["bcftools reheader -h %s" % tmp_header.name]
 
+<<<<<<< HEAD
         # Determine Output file type
         out_ext = os.path.splitext(out_filename)[1]
         out_opts = { ".bcf" : "b", ".gz" : "z", ".vcf" : "v"}
@@ -212,8 +221,15 @@ class bcf(file):
         else:
             raise Exception("Unknown file extension (%s); Must Specify vcf, vcf.gz, or bcf" % out_filename)
 
+=======
+>>>>>>> 713bf280620a5da0734ea6df4103391447cd7a89
         if version == 4.1:
             self.actions += ["bcftools view | grep -v '##INFO' | bcftools view -O v"]
+
+        # filetype
+        file_output_types = {".bcf" : "b", ".gz" : "z", ".vcf" : "v"}
+        filetype = file_ouput_types[os.path.splitext(out_filename)[1]]
+        self.actions += ["bcftools view -O %s" % filetype]
 
         # Output types
         actions = ' | '.join(self.actions)
@@ -223,8 +239,11 @@ class bcf(file):
         if out_ext in [".bcf",".gz"]:
             subprocess.check_output("bcftools index %s" % out_filename, shell=True)
 
+<<<<<<< HEAD
 x = bcf("NIC276.nofilter.group.bcf")
 x.filter({"include":'%QUAL>30', "soft-filter":"MaxQualityFail"})
 x.filter({"include":'DP>3', "s": "MinimumDepth"})
 x.out("NIC276.vcf.gz", version = 4.2)
+=======
+>>>>>>> 713bf280620a5da0734ea6df4103391447cd7a89
 
