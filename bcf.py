@@ -202,6 +202,11 @@ class bcf(file):
         self.header_add_lines += ["##INFO=<ID=EFF,Description=\"SNPEFF Annotation\">"]
         return self
 
+    def rename_samples(self, sample_names):
+        # Rename Samples by specifying a dictionary.
+        self.samples = [sample_names[x] if x in sample_names else x for x in self.samples]
+        return self
+
     def out(self, out_filename, version=None):
         #===================#
         # Header Operations #
@@ -217,6 +222,7 @@ class bcf(file):
 
         # Write out new header
         tmp_header = tempfile.NamedTemporaryFile()
+        self.header[-1] = '\t'.join(self.header[-1].split("\t")[:9] + self.samples) 
         self.header = '\n'.join(self.header).strip()
         tmp_header.write(self.header)
         tmp_header.flush() # Flush out new header
@@ -227,6 +233,7 @@ class bcf(file):
 
         self.actions += ["bcftools reheader -h %s" % tmp_header.name]
 
+
         # Determine Output file type
         out_ext = os.path.splitext(out_filename)[1]
         out_opts = { ".bcf" : "b", ".gz" : "z", ".vcf" : "v"}
@@ -234,6 +241,7 @@ class bcf(file):
             self.actions += ["bcftools view -O %s" % out_opts[out_ext]]
         else:
             raise Exception("Unknown file extension (%s); Must Specify vcf, vcf.gz, or bcf" % out_filename)
+
 
         if version == 4.1:
             self.actions += ["bcftools view | grep -v '##INFO' | bcftools view -O v"]
@@ -251,9 +259,9 @@ class bcf(file):
         if filetype in [".bcf", ".gz"]:
             subprocess.check_output("bcftools index %s" % out_filename, shell=True)
 
+
 x = bcf("NIC276.nofilter.group.bcf")
 x.filter({"include":'%QUAL>30', "soft-filter":"MaxQualityFail"})
 x.filter({"include":'DP>3', "s": "MinimumDepth"})
 x.out("NIC276.vcf.gz", version = 4.2)
-
 
