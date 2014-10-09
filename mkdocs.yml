@@ -1,0 +1,7 @@
+site_name: pyPipeline
+pages:
+- [index.md, Home]
+- [about.md, About]
+theme: readthedocs
+repo_url: https://github.com/AndersenLab/pyPipeline
+site_dir: .
