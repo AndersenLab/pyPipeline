@@ -4,6 +4,10 @@ import os, subprocess, re, glob, hashlib, gzip, mimetypes, tempfile
 from itertools import groupby as g
 from collections import OrderedDict
 from utils import *
+from pprint import pprint as pp
+
+# Variable types defined in vcf header
+_vcf_variable_types = {"Integer" : int, "String": str, "Float" : float, "Flag": bool}
 
 def format_options(options):
     formatted_options = {}
@@ -23,6 +27,7 @@ def format_options(options):
         if k in ['--include','-i','--exclude','-e']:
             formatted_options[k] = "'%s'" % v
     return formatted_options
+
 
 class vcf(file):
     def __init__(self, filename):
@@ -55,27 +60,70 @@ class vcf(file):
         self.contigs = [{x.split("=")[0]:x.split("=")[1] for x in f} for f in self.contigs]
         
         # Info
-        self.info_set = re.compile(r'''\#\#INFO=<
+        r = re.compile(r'''\#\#INFO=<
             ID=(?P<id>[^,]+),
             Number=(?P<number>-?\d+|\.|[AG]),
             Type=(?P<type>Integer|Float|Flag|Character|String),
             Description="(?P<desc>[^"]*)"
-            >''', re.VERBOSE).findall(self.header)
+            >''', re.VERBOSE)
+        self.info_set = {x["id"]:x for x in [m.groupdict() for m in r.finditer(self.header)]}
         
         # Filter
-        self.filter_set = re.compile(r'''\#\#FILTER=<
+        r = re.compile(r'''\#\#FILTER=<
             ID=(?P<id>[^,]+),
             Description="(?P<desc>[^"]*)"
-            >''', re.VERBOSE).findall(self.header)
-
-        self.format_pattern = re.compile(r'''\#\#FORMAT=<
+            >''', re.VERBOSE)
+        self.filter_set = {x["id"]:x for x in [m.groupdict() for m in r.finditer(self.header)]}
+        
+        r = re.compile(r'''\#\#FORMAT=<
             ID=(?P<id>.+),
             Number=(?P<number>-?\d+|\.|[AG]),
             Type=(?P<type>.+),
             Description="(?P<desc>.*)"
-            >''', re.VERBOSE).findall(self.header)
+            >''', re.VERBOSE)
+        self.format_set = {x["id"]:x for x in [m.groupdict() for m in r.finditer(self.header)]}
+
+    def parse_info(self, info_line):
+        info = [x.split("=") for x in info_line.split(";")]
+        info_line_dict = {}
+        # Set variable types if available
+        for i in info:
+            # Check if the field consists of multiple values
+            if int(self.info_set[i[0]]["number"]) > 1:
+                info_line_dict[i[0]] = map(_vcf_variable_types[self.info_set[i[0]]["type"]], i[1].split(","))
+            # Check if field has a value (non-bool)
+            elif len(i) > 1:
+                info_line_dict[i[0]] = map(_vcf_variable_types[self.info_set[i[0]]["type"]], [i[1]])[0]
+            else:
+                info_line_dict[i[0]] = i[0]
+        return info_line_dict
+
+    def parse_format(self, format_set):
+        geno_dict = {}
+        format = format_set[0].split(":")
+        for k,rec in enumerate(format_set[1:]):
+            sample_geno = dict(zip(format,rec.split(":")))
+            
+            # Set Variable Types
+            for k,v in sample_geno.items():
+                print k, v
+                # Check if the field consists of multiple values
+                if int(self.format_set[k]["number"]) > 1:
+                    sample_geno[k] = map(_vcf_variable_types[self.format_set[k]["type"]], rec.split(","))
+                # Check if field has a value (non-bool)
+                elif int(self.format_set[k]["number"]) == 1:
+                    sample_geno[k] = map(_vcf_variable_types[self.format_set[k]["type"]], [rec])[0]
+                else:
+                    sample_geno[k] = k
+
+
+
+            sample_geno["sample"] = self.samples[k]
 
     def variant_dict(self, lines=10):
+        """
+            Parses a set of variants and inserts results into a dictionary.
+        """
         variant_set = []
         p = subprocess.Popen('bcftools view -H %s' % (self.filename), shell=True, stdout=subprocess.PIPE, bufsize=1)
         for line in iter(p.stdout.readline, b''):
@@ -88,6 +136,9 @@ class vcf(file):
             variant["ALT"] = line[4]
             variant["QUAL"] = float(line[5])
             variant["FILTER"] = line[6]
+            # Parse INFO and set types
+            variant["INFO"] = self.parse_info(line[7])
+            #variant["GENO"] = self.parse_format(line[8:])
             variant_set.append(variant)
         return variant_set
 
@@ -113,7 +164,7 @@ class vcf(file):
     def snpeff(self, annotation_db):
         # Apply snpeff annotations
         self.actions += ["bcftools view | snpeff eff %s" % annotation_db]
-        self.header_add_lines += ["##INFO=<ID=EFF,Description=\"SNPEFF Annotation\">"]
+        self.header_add_lines += ["##INFO=<ID=EFF,Number=1,Type=String,Description=\"SNPEFF Annotation\">"]
         return self
 
     def rename_samples(self, sample_names):
