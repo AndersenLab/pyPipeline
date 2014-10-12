@@ -2,6 +2,7 @@
 # Small wrapper for bcftools 2.0 - for querying vcf data quickly and easily.
 import os, subprocess, re, glob, hashlib, gzip, mimetypes, tempfile
 from itertools import groupby as g
+from parser.snpeff import *
 from collections import OrderedDict
 from utils import *
 from pprint import pprint as pp
@@ -89,12 +90,21 @@ class vcf(file):
         info_line_dict = {}
         # Set variable types if available
         for i in info:
+            print i[0]
             if i[0] in self.info_set:
-                # Check if the field consists of multiple values
                 if int(self.info_set[i[0]]["number"]) > 1:
+                # Check if the field consists of multiple values
                     info_line_dict[i[0]] = map(_vcf_variable_types[self.info_set[i[0]]["type"]], i[1].split(","))
-                # Check if field has a value (non-bool)
+                elif i[0] == "EFF":
+                # Parse SNPEFF
+                    var_effects = []
+                    for v in i[1].split(","):
+                        print v
+                        var_effects.append(EffectDetails(v))
+                    print var_effects
+                    info_line_dict[i[0]] = var_effects
                 elif len(i) > 1:
+                # Check if field has a value (non-bool)
                     info_line_dict[i[0]] = map(_vcf_variable_types[self.info_set[i[0]]["type"]], [i[1]])[0]
                 else:
                     info_line_dict[i[0]] = i[0]
@@ -160,10 +170,6 @@ class vcf(file):
     def stats(self):
         return subprocess.check_output("bcftools stats --samples - %s" % self.filename, stderr=subprocess.STDOUT, shell=True)
 
-    def region(self, region):
-        self.region = region
-        return self
-
     def snpeff(self, annotation_db):
         # Apply snpeff annotations
         self.actions += ["bcftools view | snpeff eff %s" % annotation_db]
@@ -219,7 +225,7 @@ class vcf(file):
         actions = ' | '.join(self.actions)
 
         print "bcftools view -O u %s %s | %s > %s" % (self.filename, self.region, actions, out_filename)
-        subprocess.check_output("bcftools view -O u %s | %s > %s" % (self.filename, actions, out_filename), shell=True)
+        subprocess.check_output("bcftools view -O u %s %s | %s > %s" % (self.filename, self.region, actions, out_filename), shell=True)
         if self.filetype in [".bcf", ".gz"]:
             subprocess.check_output("bcftools index %s" % out_filename, shell=True)
 
