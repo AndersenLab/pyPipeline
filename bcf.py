@@ -207,10 +207,8 @@ class vcf(file):
 
         self.actions += ["bcftools reheader -h %s" % tmp_header.name]
 
-
         if version == 4.1:
             self.actions += ["bcftools view | grep -v '##INFO' | bcftools view -O v"]
-
 
         # Determine Output file type
         out_ext = os.path.splitext(out_filename)[1]
