@@ -52,3 +52,13 @@ coverage.xml
 # Sphinx documentation
 docs/_build/
 
+# genetics stuff
+*.bcf
+*.bcf.csi
+*.vcf.gz
+*.vcf.gz.csi
+*.tbi
+*.vcf
+*.fq
+*.fq.gz
+*.vcf.idx
