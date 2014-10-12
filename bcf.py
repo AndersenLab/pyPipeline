@@ -30,10 +30,11 @@ def format_options(options):
 
 
 class vcf(file):
-    def __init__(self, filename):
+    def __init__(self, filename, region = ""):
         # Start by storing basic information about the vcf/bcf and checking that an index exists.
         self.filename = filename
-        self.filetype = os.path.splitext(filename)
+        self.filetype = os.path.splitext(filename)[1]
+        self.region = region
         self.md5_digest = md5(filename)
         self.actions = []
         self.header_add_lines = []
@@ -88,14 +89,15 @@ class vcf(file):
         info_line_dict = {}
         # Set variable types if available
         for i in info:
-            # Check if the field consists of multiple values
-            if int(self.info_set[i[0]]["number"]) > 1:
-                info_line_dict[i[0]] = map(_vcf_variable_types[self.info_set[i[0]]["type"]], i[1].split(","))
-            # Check if field has a value (non-bool)
-            elif len(i) > 1:
-                info_line_dict[i[0]] = map(_vcf_variable_types[self.info_set[i[0]]["type"]], [i[1]])[0]
-            else:
-                info_line_dict[i[0]] = i[0]
+            if i[0] in self.info_set:
+                # Check if the field consists of multiple values
+                if int(self.info_set[i[0]]["number"]) > 1:
+                    info_line_dict[i[0]] = map(_vcf_variable_types[self.info_set[i[0]]["type"]], i[1].split(","))
+                # Check if field has a value (non-bool)
+                elif len(i) > 1:
+                    info_line_dict[i[0]] = map(_vcf_variable_types[self.info_set[i[0]]["type"]], [i[1]])[0]
+                else:
+                    info_line_dict[i[0]] = i[0]
         return info_line_dict
 
     def parse_format(self, format_set):
@@ -135,11 +137,12 @@ class vcf(file):
             variant["REF"] = line[3]
             variant["ALT"] = line[4]
             variant["QUAL"] = float(line[5])
-            variant["FILTER"] = line[6]
+            variant["FILTER"] = line[6].split(";")
             # Parse INFO and set types
             variant["INFO"] = self.parse_info(line[7])
             #variant["GENO"] = self.parse_format(line[8:])
             variant_set.append(variant)
+        print pp(variant_set)
         return variant_set
 
         p.communicate() 
@@ -158,7 +161,7 @@ class vcf(file):
         return subprocess.check_output("bcftools stats --samples - %s" % self.filename, stderr=subprocess.STDOUT, shell=True)
 
     def region(self, region):
-        self.actions += ["bcftools view -O u -t {region}".format(region=region)]
+        self.region = region
         return self
 
     def snpeff(self, annotation_db):
@@ -199,6 +202,10 @@ class vcf(file):
         self.actions += ["bcftools reheader -h %s" % tmp_header.name]
 
 
+        if version == 4.1:
+            self.actions += ["bcftools view | grep -v '##INFO' | bcftools view -O v"]
+
+
         # Determine Output file type
         out_ext = os.path.splitext(out_filename)[1]
         out_opts = { ".bcf" : "b", ".gz" : "z", ".vcf" : "v"}
@@ -208,20 +215,12 @@ class vcf(file):
             raise Exception("Unknown file extension (%s); Must Specify vcf, vcf.gz, or bcf" % out_filename)
 
 
-        if version == 4.1:
-            self.actions += ["bcftools view | grep -v '##INFO' | bcftools view -O v"]
-
-        # filetype
-        file_output_types = {".bcf" : "b", ".gz" : "z", ".vcf" : "v"}
-        filetype = file_output_types[os.path.splitext(out_filename)[1]]
-        self.actions += ["bcftools view -O %s" % filetype]
-
         # Output types
         actions = ' | '.join(self.actions)
 
-        print "bcftools view -O u %s | %s > %s" % (self.filename, actions, out_filename)
+        print "bcftools view -O u %s %s | %s > %s" % (self.filename, self.region, actions, out_filename)
         subprocess.check_output("bcftools view -O u %s | %s > %s" % (self.filename, actions, out_filename), shell=True)
-        if filetype in [".bcf", ".gz"]:
+        if self.filetype in [".bcf", ".gz"]:
             subprocess.check_output("bcftools index %s" % out_filename, shell=True)
 
 
