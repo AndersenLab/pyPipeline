@@ -1,1 +1,1 @@
-FQ1	FQ2	LB	SM	PLfastq/BGI3-RET2b-test1-d1442-1.fq.gz	fastq/BGI3-RET2b-test1-336eb-2.fq.gz	BGI3	test1	ILLUMINA
+FQ1	FQ2	LB	SM	PLfastq/BGI3-RET2b-test1-d1442-1.fq.gz	fastq/BGI3-RET2b-test1-336eb-2.fq.gz	RET2b	test1	ILLUMINAfastq/BGI3-RET2b-test1-f0534-1.fq.gz	fastq/BGI3-RET2b-test1-c4591-2.fq.gz	RET2b	test1	ILLUMINAfastq/BGI3-RET2b-test2-d1442-1.fq.gz	fastq/BGI3-RET2b-test2-336eb-2.fq.gz	RET2b	test1	ILLUMINA

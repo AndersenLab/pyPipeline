@@ -10,7 +10,7 @@ mark_dups = """
             O={OPTIONS.analysis_dir}/bam/{ID}.bam \
             M={OPTIONS.analysis_dir}/bam/{ID}.duplicate_report.txt \
             VALIDATION_STRINGENCY=SILENT REMOVE_DUPLICATES=true
-           """
+            """
 
 samtools_command = """ """
 

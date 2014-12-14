@@ -2,6 +2,7 @@
 # C. briggsae:
 CB4: http://hgdownload-test.cse.ucsc.edu/goldenPath/cb4/bigZips/chromFa.tar.gz
 # C. elegans:
+WS235: ftp://ftp.wormbase.org/pub/wormbase/releases/WS235/species/c_elegans/c_elegans.WS235.genomic.fa.gz
 WS243: ftp://ftp.wormbase.org/pub/wormbase/releases/WS243/species/c_elegans/PRJNA13758/c_elegans.PRJNA13758.WS243.genomic.fa.gz
 WS244: ftp://ftp.wormbase.org/pub/wormbase/releases/WS244/species/c_elegans/PRJNA13758/c_elegans.PRJNA13758.WS244.genomic.fa.gz
 WS245: ftp://ftp.wormbase.org/pub/wormbase/releases/WS245/species/c_elegans/PRJNA13758/c_elegans.PRJNA13758.WS245.genomic.fa.gz
