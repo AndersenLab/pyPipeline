@@ -1,4 +1,2 @@
 pyPipeline
-=====
-
-Pythonic sequencing projects.
+=========

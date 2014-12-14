@@ -1,0 +1,12 @@
+OPTIONS:
+    cores: 10
+    reference: "WS245"
+    fastq_set: "sample_list.txt"
+    analysis_dir: "testing2" # Name of directory that will be created.
+
+
+COMMANDS:
+    align:
+        bwa:
+    snps:
+        samtools:
