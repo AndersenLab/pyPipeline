@@ -1,0 +1,34 @@
+# Variables are inherited.
+OPTIONS:
+    cores: 5                                    # REQUIRED
+    reference: "location/of/reference/ref.fa"
+    analysis_dir: "testing"
+
+#==============#
+# Tool Options #
+#==============#
+
+# Only inherits options for commands
+# located within the analysis config file.
+COMMANDS:
+    align:
+        bwa:
+            "__command__" : "mem" # Set as either mem, sampse, or sampe
+        picard:
+<<<<<<< .merge_file_7adCxM
+            markduplicates: "True"
+=======
+            markduplicates: True
+>>>>>>> .merge_file_p2NeXN
+    snps:
+        samtools:
+            "great" : "cool"
+        freebayes:
+            "greatNess" : "Cool"
+
+    indels:
+        samtools:
+            "yes" : "yes"
+        freebayes:
+            "cool" : "great"
+
