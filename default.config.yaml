@@ -15,7 +15,7 @@ COMMANDS:
         bwa:
             "__command__" : "mem" # Set as either mem, sampse, or sampe
         picard:
-            markduplicates: "True"
+            markduplicates: True
     snps:
         samtools:
             "great" : "cool"
