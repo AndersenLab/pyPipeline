@@ -8,5 +8,6 @@ OPTIONS:
 COMMANDS:
     align:
         bwa:
+        markduplicates: True
     snps:
         samtools:
