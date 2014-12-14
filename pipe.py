@@ -39,20 +39,24 @@ if __name__ == '__main__':
     analysis_type = [x for x in opts if opts[x] == True][0]
     # Load Configuration
     config_file = opts["<config>"]
-    config, gLOG, cLOG = load_config_and_logs(config_file, analysis_type)
-    gLOG.info("Running " + opts["<config>"])
+    config, log, c_log = load_config_and_log(config_file, analysis_type)
+    print(config)
+    log.info("#============== Beginning Analysis ==============#")
+    log.info("Running " + opts["<config>"])
     # Running locally or on a cluster
     if opts["--debug"] == True:
         run = "python"
-        gLOG.info("Using DEBUG mode")
+        log.info("Using DEBUG mode")
     else:
         run = "sbatch"
 
     if analysis_type == "align":
         fq_set = open(config["OPTIONS"]["fastq_set"], 'rU')
+        log.info("Performing Alignment")
         for fq in csv.DictReader(fq_set, delimiter='\t', quoting=csv.QUOTE_NONE):
             align = "{run} align.py {config_file} \"{fq}\"".format(**locals())
-            command(align, cLOG)
+            log.info(align)
+            os.system(align)
 
 
 

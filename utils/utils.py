@@ -38,38 +38,26 @@ def setup_logger(config):
     # Set up Logger
     log = logging.getLogger("pyPipeline")
     analysis_dir = config.OPTIONS.analysis_dir
-    # 
     fh = logging.FileHandler(analysis_dir + "/" + analysis_dir + ".log")
-    sh = logging.StreamHandler()
     # Setup Formatting
     formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
     # Set formats
     fh.setFormatter(formatter)
-    sh.setFormatter(formatter)
-    
     log.addHandler(fh)
-    log.addHandler(sh)
-
     if config.DEBUG == True:
         log.setLevel(logging.DEBUG)
     else:
         log.setLevel(logging.INFO)
     return log
 
-def setup_command_logger(config):
-    # Set up Logger
-    log = logging.getLogger("commands")
-    analysis_dir = config.OPTIONS.analysis_dir
-    sh = logging.StreamHandler()
-    # 
-    fh = logging.FileHandler(analysis_dir + "/" + "commands.log")
-    log.addHandler(fh)
-    log.addHandler(sh)
-    log.setLevel(logging.INFO)
-    return log
+class command_log:
+    def __init__(self, config):
+        analysis_dir = config.OPTIONS.analysis_dir
+        self.log = open(analysis_dir + "/commands.log",'a')
+    def add(self, command):
+        self.log.write(command)
 
-
-def load_config_and_logs(config, job_type):
+def load_config_and_log(config, job_type):
     """ 
         Loads the configuration file
             - Inherits default options not specified
@@ -87,6 +75,7 @@ def load_config_and_logs(config, job_type):
     for comm in config["COMMANDS"][job_type].keys():
         for opt,val in default["COMMANDS"][job_type][comm].items():
             if config["COMMANDS"][job_type][comm] is not None:
+                print config
                 if opt not in config["COMMANDS"][job_type][comm].keys():
                     config["COMMANDS"][job_type][comm][opt] = val
             else:
@@ -94,9 +83,9 @@ def load_config_and_logs(config, job_type):
                 # set it up now.
                 config["COMMANDS"][job_type][comm] = {}
                 config["COMMANDS"][job_type][comm][opt] = val
-    command_logger = setup_command_logger(config)
-    general_logger = setup_logger(config)
-    return config, general_logger, command_logger
+    general_log = setup_logger(config)
+    c_log = command_log(config)
+    return config, general_log, c_log
 
 def format_command(command_config):
     """
@@ -123,11 +112,11 @@ def makedir(dirname):
 
 def command(command, log):
     """ Run a command on system and log """
+    log.add(command.strip() + "\n")
     command = Popen(command, shell=True, stdout=PIPE)
     for line in command.stdout:
-        log.info(line)
+        print(line)
     if command.stderr is not None:
-        log.error(command.stderr)
         raise Exception(command.stderr)
 
 def which(program):

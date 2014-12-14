@@ -2,7 +2,7 @@
 import sys, os
 from ast import literal_eval
 from utils import *
-from commands import bwa
+from commands import *
 import tempfile
 import glob
 
@@ -11,7 +11,7 @@ import glob
 #====================#
 
 opts = literal_eval(sys.argv[2])
-config, gLOG, cLOG = load_config_and_logs(sys.argv[1], "align")
+config, log, c_log = load_config_and_log(sys.argv[1], "align")
 OPTIONS = config.OPTIONS
 COMMANDS = config.COMMANDS
 align = COMMANDS.align # Pulls out alignment types.
@@ -33,7 +33,6 @@ else:
 # Note library is optional; hence it's not explicitely defined.
 RG_header = "@RG\\tID:{ID}\\tSM:{SM}\\t{PL}\\t{LB}".format(**locals())
 
-
 #=====#
 # BWA #
 #=====#
@@ -49,5 +48,17 @@ if "bwa" in align:
 	makedir(OPTIONS["analysis_dir"])
 	makedir(OPTIONS["analysis_dir"] + "/bam")
 	comm = bwa.format(**locals())
-	cLOG.info(comm)
-	command(comm, cLOG)
+	command(comm, c_log)
+
+#=================#
+# Mark Duplicates #
+#=================#
+
+if "picard" in align:
+	if "markduplicates" in align.picard:
+		if align.picard.markduplicates == True:
+			comm = mark_dups.format(**locals())
+			log.info("Removing Duplicates: %s.bam" % ID)
+			c_log.add(comm)
+			command(comm, c_log)
+
