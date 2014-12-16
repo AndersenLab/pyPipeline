@@ -57,6 +57,8 @@ if __name__ == '__main__':
             align = "{run} align.py {config_file} \"{fq}\"".format(**locals())
             log.info(align)
             os.system(align)
+        # Merge Like Samples
+        
 
 
 

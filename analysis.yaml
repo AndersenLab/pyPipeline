@@ -3,6 +3,7 @@ OPTIONS:
     reference: "WS245"
     fastq_set: "sample_list.txt"
     analysis_dir: "testing2" # Name of directory that will be created.
+    bam_dir: "bam"
 
 
 COMMANDS:
@@ -10,5 +11,8 @@ COMMANDS:
         bwa:
         picard:
             markduplicates: True
+        alignment_options:
+            combine_like_samples: True
+            remove_temp: True
     snps:
         samtools:

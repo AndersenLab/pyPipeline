@@ -38,7 +38,6 @@ RG_header = "@RG\\tID:{ID}\\tSM:{SM}\\t{PL}\\t{LB}".format(**locals())
 #=====#
 
 if "bwa" in align:
-	print config
 	bwa_command, bwa_options = format_command(align["bwa"])
 	reference = glob.glob("genomes/{OPTIONS.reference}/*gz".format(**locals()))[0]
 	tmpname = os.path.split(tempfile.mktemp(prefix=ID))[1]
@@ -48,8 +47,17 @@ if "bwa" in align:
 	# Create Directories
 	makedir(OPTIONS["analysis_dir"])
 	makedir(OPTIONS["analysis_dir"] + "/bam")
-	comm = bwa.format(**locals())
-	command(comm, c_log)
+	completed_bam = "{OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/{ID}.bam".format(**locals())
+	unsorted_bam = "{OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/{ID}.unsorted.bam".format(**locals())
+	if not file_exists(completed_bam) and not file_exists(unsorted_bam):
+		comm = bwa.format(**locals())
+		command(comm, c_log)
+		if align.alignment_options.remove_temp == True:
+			file_to_delete = "rm {OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/{ID}.unsorted.bam".format(**locals())
+			command(file_to_delete, c_log)
+	else:
+		log.info("SKIPPING: " + completed_bam + " exists; no alignment.")
+
 
 #=================#
 # Mark Duplicates #
@@ -58,8 +66,20 @@ if "bwa" in align:
 if "picard" in align:
 	if "markduplicates" in align.picard:
 		if align.picard.markduplicates == True:
-			comm = mark_dups.format(**locals())
-			log.info("Removing Duplicates: %s.bam" % ID)
-			c_log.add(comm)
-			command(comm, c_log)
+			dup_report = "{OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/{ID}.duplicate_report.txt".format(**locals())
+			if not file_exists(dup_report):
+				comm = mark_dups.format(**locals())
+				log.info("Removing Duplicates: %s.bam" % ID)
+				c_log.add(comm)
+				command(comm, c_log)
+				# Remove Sort tempfile
+				if align.alignment_options.remove_temp == True:
+					file_to_delete = "rm {OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/{ID}.sorted.bam".format(**locals())
+					command(file_to_delete, c_log)
+			else:
+				log.info("SKIPPING: " + dup_report + " exists; Skipping.")
+else:
+	# If duplicates are not being marked, move files
+	move_file = """mv {OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/{ID}.sorted.bam {OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/{ID}.bam""".format(**locals())
+	command(move_file, c_log)
 
