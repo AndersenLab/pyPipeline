@@ -62,3 +62,4 @@ docs/_build/
 *.fq
 *.fq.gz
 *.vcf.idx
+genomes/*

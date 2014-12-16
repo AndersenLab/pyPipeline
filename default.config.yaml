@@ -3,6 +3,7 @@ OPTIONS:
     cores: 5                                    # REQUIRED
     reference: "location/of/reference/ref.fa"
     analysis_dir: "testing"
+    bam_dir: "bam"
 
 #==============#
 # Tool Options #
@@ -16,6 +17,9 @@ COMMANDS:
             "__command__" : "mem" # Set as either mem, sampse, or sampe
         picard:
             markduplicates: True
+        alignment_options:
+            combine_like_samples: True
+            remove_temp: True
     snps:
         samtools:
             "great" : "cool"
