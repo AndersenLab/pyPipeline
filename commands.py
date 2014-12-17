@@ -5,7 +5,7 @@ bwa = """bwa {bwa_command} -R '{RG_header}' {bwa_options} {reference} {FQ1} {FQ2
          samtools sort -O bam -T {tmpname} {OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/{ID}.unsorted.bam > {OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/{ID}.sorted.bam"""
 
 mark_dups = """
-            java -jar tools/picard.jar MarkDuplicates \
+            java -jar {script_dir}/tools/picard.jar MarkDuplicates \
             I={OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/{ID}.sorted.bam \
             O={OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/{ID}.bam \
             M={OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/{ID}.duplicate_report.txt \

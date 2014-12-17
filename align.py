@@ -39,7 +39,7 @@ RG_header = "@RG\\tID:{ID}\\tSM:{SM}\\t{PL}\\t{LB}".format(**locals())
 
 if "bwa" in align:
 	bwa_command, bwa_options = format_command(align["bwa"])
-	reference = glob.glob("genomes/{OPTIONS.reference}/*gz".format(**locals()))[0]
+	reference = glob.glob("{script_dir}/genomes/{OPTIONS.reference}/*gz".format(**locals()))[0]
 	tmpname = os.path.split(tempfile.mktemp(prefix=ID))[1]
 	FQ1 = opts["FQ1"]
 	FQ2 = opts["FQ2"]

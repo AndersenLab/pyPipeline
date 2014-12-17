@@ -63,7 +63,7 @@ def load_config_and_log(config, job_type):
             - Inherits default options not specified
             - Inherits options only for the job type specified.
     """
-    default = dotdictify(ya=ml.load(open("default.config.yaml","r")))
+    default = dotdictify(yaml.load(open(script_dir + "/default.config.yaml","r")))
     config = dotdictify(yaml.load(open(config, 'r')))
     # Create analysis directory.
     makedir(config.OPTIONS.analysis_dir)
@@ -99,7 +99,7 @@ def format_command(command_config):
             opts += "%s %s " % (k,v)
     return first_arg, opts
 
-def file_greater_than_0(filename):
+def file_exists(filename):
     if os.path.isfile(filename) and os.path.getsize(filename) > 0:
         return True
     else:
@@ -173,7 +173,6 @@ def get_script_dir():
 
 
 # Define Constants
-
 script_dir = get_script_dir()
 
 

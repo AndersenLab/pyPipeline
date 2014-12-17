@@ -19,7 +19,6 @@ import csv
 if __name__ == '__main__':
     opts = docopt(__doc__, version='pyPipeline')
     print opts
-
     #==================#
     # Genome Retrieval #
     #==================#
@@ -34,7 +33,7 @@ if __name__ == '__main__':
     # Alignment #
     #===========#
     if opts["new"] == True: 
-        sample_file = "FQ1\tFQ2\tLB\tSM\tPL"
+        sample_file = "FQ1\tFQ2\tLB\tSM\tPL\n"
         open(opts["<filename>"],'w').write(sample_file)
         exit()
     analysis_types = ["align", "snps","indels"]
@@ -43,7 +42,7 @@ if __name__ == '__main__':
     config_file = opts["<config>"]
     config, log, c_log = load_config_and_log(config_file, analysis_type)
     print(config)
-    log.info("#============== Beginning Analysis ==============#")
+    log.info("#=== Beginning Analysis ===#")
     log.info("Running " + opts["<config>"])
     # Running locally or on a cluster
     if opts["--debug"] == True:
@@ -56,7 +55,7 @@ if __name__ == '__main__':
         fq_set = open(config["OPTIONS"]["fastq_set"], 'rU')
         log.info("Performing Alignment")
         for fq in csv.DictReader(fq_set, delimiter='\t', quoting=csv.QUOTE_NONE):
-            align = "{run} {script_dir}align.py {config_file} \"{fq}\"".format(**locals())
+            align = "{run} {script_dir}/align.py {config_file} \"{fq}\"".format(**locals())
             log.info(align)
             os.system(align)
         # Merge Like Samples
