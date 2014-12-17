@@ -22,7 +22,7 @@ align = COMMANDS.align # Pulls out alignment types.
 
 # Set up Read Group String for alignment (with bwa)
 fqs = [os.path.split(opts["FQ1"])[1], os.path.split(opts["FQ2"])[1]]
-ID = common_prefix(fqs).strip("-_")
+ID = get_fq_ID(fqs)
 
 if is_defined(opts["SM"]):
 	SM = "SM:" + opts["SM"] + "\\t"
@@ -90,4 +90,3 @@ else:
 	# If duplicates are not being marked, move files
 	move_file = """mv {OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/{ID}.sorted.bam {OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/{ID}.bam""".format(**locals())
 	command(move_file, c_log)
-

@@ -196,6 +196,8 @@ def is_defined(val):
     else:
         return True
 
+def get_fq_ID(fqs):
+    return common_prefix(fqs).strip("-_")
 
 # Define Constants
 script_dir = get_script_dir()
