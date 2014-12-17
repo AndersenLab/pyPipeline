@@ -5,6 +5,7 @@ Usage:
   pipe.py align <config> [--debug]
   pipe.py samplefile <filename/dir>
   pipe.py genome [<name>]
+  pipe.py test <config>
 
 Options:
   -h --help     Show this screen.
@@ -68,7 +69,7 @@ if __name__ == '__main__':
     # Alignment #
     #===========#
 
-    analysis_types = ["align", "snps","indels"]
+    analysis_types = ["align", "snps","indels", "test"]
     analysis_type = [x for x in opts if opts[x] == True][0]
     # Load Configuration
     config, log, c_log = load_config_and_log(config_file, analysis_type)
@@ -97,6 +98,10 @@ if __name__ == '__main__':
             log.info(align)
             os.system(align)
         # Merge Like Samples
+    if analysis_type == "test":
+        reference = glob.glob("{script_dir}/genomes/{OPTIONS.reference}/*gz".format(**locals()))[0]
+        for i in chunk_genome(1000000, reference):
+            print i
         
 
 

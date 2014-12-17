@@ -7,3 +7,4 @@ pyPipeline
 - [ ] Freebayes Variant Calling
 - [ ] Variant comparison
 - [ ] Beagle
+- [ ] Email Notifications

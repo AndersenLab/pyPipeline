@@ -34,6 +34,24 @@ class dotdictify(dict):
     __getattr__ = __getitem__
 
 
+def chunk_genome(chunk_size, reference):
+    """ 
+    Parses bwa .ann file to retrieve chromosome sizes
+    for chunking purposes
+    """
+    ann = open(reference + ".ann").read()
+    # Parsing .ann files
+    contigs = [x.split(" ")[1] for x in ann.split("\n")[1:-1:1]][::2]
+    contig_sizes = map(int,[x.split(" ")[1] for x in ann.split("\n")[1:-1:1]][1::2])
+    for chrom, size in zip(contigs, contig_sizes):
+        for chunk in xrange(1,size, chunk_size):
+            if chunk + chunk_size > size:
+                chunk_end = size
+            else:
+                chunk_end = chunk + chunk_size-1
+            yield "{chrom}:{chunk}-{chunk_end}".format(**locals())
+
+    
 def setup_logger(config):
     # Set up Logger
     log = logging.getLogger("pyPipeline")
@@ -171,7 +189,6 @@ def common_prefix(strings):
 
 def get_script_dir():
     return os.path.dirname(os.path.realpath(__file__)).replace("/utils", "")
-
 
 def is_defined(val):
     if val == '' or val == None:
