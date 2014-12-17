@@ -57,7 +57,7 @@ class command_log:
     def add(self, command):
         self.log.write(command)
 
-def load_config_and_log(config, job_type):
+def load_config_and_log(config, job_type = None):
     """ 
         Loads the configuration file
             - Inherits default options not specified
@@ -109,6 +109,8 @@ def makedir(dirname):
   if not os.path.exists(dirname):
     os.mkdir(dirname)
 
+def is_dir(dir):
+    return os.path.isdir(dir)
 
 def command(command, log):
     """ Run a command on system and log """

@@ -24,9 +24,12 @@ align = COMMANDS.align # Pulls out alignment types.
 fqs = [os.path.split(opts["FQ1"])[1], os.path.split(opts["FQ2"])[1]]
 ID = common_prefix(fqs).strip("-_")
 SM = opts["SM"]
-if opts["LB"] != "":
+print opts
+if opts["LB"] != None:
 	LB = "LB:" + opts["LB"]
-if opts["PL"] == "":
+else:
+	LB = ""
+if opts["PL"] == None:
 	PL = "PL:ILLUMINA"
 else:
 	PL = opts["PL"]
