@@ -23,18 +23,23 @@ align = COMMANDS.align # Pulls out alignment types.
 # Set up Read Group String for alignment (with bwa)
 fqs = [os.path.split(opts["FQ1"])[1], os.path.split(opts["FQ2"])[1]]
 ID = common_prefix(fqs).strip("-_")
-SM = opts["SM"]
-print opts
-if opts["LB"] != None:
-	LB = "LB:" + opts["LB"]
+
+if is_defined(opts["SM"]):
+	SM = "SM:" + opts["SM"] + "\\t"
+else:
+	SM = ""
+if is_defined(opts["LB"]):
+	LB = "LB:" + opts["LB"] + "\\t"
 else:
 	LB = ""
-if opts["PL"] == None:
-	PL = "PL:ILLUMINA"
+
+if is_defined(opts["PL"]):
+	PL = "PL:" + opts["PL"]
 else:
-	PL = opts["PL"]
+	PL = "PL:ILLUMINA"
 # Note library is optional; hence it's not explicitely defined.
-RG_header = "@RG\\tID:{ID}\\tSM:{SM}\\t{PL}\\t{LB}".format(**locals())
+RG_header = "@RG\\tID:{ID}\\t{SM}{LB}{PL}".format(**locals())
+print RG_header
 
 #=====#
 # BWA #

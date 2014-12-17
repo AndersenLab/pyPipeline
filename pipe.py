@@ -18,7 +18,6 @@ from utils.genomes import *
 import csv
 
 def check_fqs(fq):
-    print file_exists(fq["FQ1"])
     if not file_exists(fq["FQ1"]) or not file_exists(fq["FQ2"]):
         raise Exception("File Missing; Check: {fq1}, {fq2}".format(fq1=fq["FQ1"], fq2=fq["FQ2"]))
 
@@ -74,7 +73,6 @@ if __name__ == '__main__':
     # Load Configuration
     config, log, c_log = load_config_and_log(config_file, analysis_type)
     OPTIONS = config.OPTIONS
-    print(config)
     log.info("#=== Beginning Analysis ===#")
     log.info("Running " + opts["<config>"])
     # Running locally or on a cluster

@@ -55,7 +55,7 @@ class command_log:
         analysis_dir = config.OPTIONS.analysis_dir
         self.log = open(analysis_dir + "/commands.log",'a')
     def add(self, command):
-        self.log.write(command)
+        self.log.write(command.strip())
 
 def load_config_and_log(config, job_type = None):
     """ 
@@ -75,7 +75,6 @@ def load_config_and_log(config, job_type = None):
     for comm in config["COMMANDS"][job_type].keys():
         for opt,val in default["COMMANDS"][job_type][comm].items():
             if config["COMMANDS"][job_type][comm] is not None:
-                print config
                 if opt not in config["COMMANDS"][job_type][comm].keys():
                     config["COMMANDS"][job_type][comm][opt] = val
             else:
@@ -172,6 +171,13 @@ def common_prefix(strings):
 
 def get_script_dir():
     return os.path.dirname(os.path.realpath(__file__)).replace("/utils", "")
+
+
+def is_defined(val):
+    if val == '' or val == None:
+        return False
+    else:
+        return True
 
 
 # Define Constants
