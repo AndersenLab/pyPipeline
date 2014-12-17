@@ -1,7 +1,9 @@
 # Variables are inherited.
 OPTIONS:
-    cores: 5                                    # REQUIRED
-    reference: "location/of/reference/ref.fa"
+    DEBUG_workdir: "~/Documents/tmp/data"               # REQUIRED
+    SLURM_workdir: "/lscr2/andersenlab/dec211/v2/DATA/" # REQUIRED
+    cores: 5                                            # REQUIRED
+    reference: "WS245"
     analysis_dir: "testing"
     bam_dir: "bam"
 

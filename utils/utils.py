@@ -63,7 +63,7 @@ def load_config_and_log(config, job_type):
             - Inherits default options not specified
             - Inherits options only for the job type specified.
     """
-    default = dotdictify(yaml.load(open("default.config.yaml","r")))
+    default = dotdictify(ya=ml.load(open("default.config.yaml","r")))
     config = dotdictify(yaml.load(open(config, 'r')))
     # Create analysis directory.
     makedir(config.OPTIONS.analysis_dir)
@@ -167,3 +167,13 @@ def common_prefix(strings):
                 prefix = prefix[:i]
                 break
     return prefix
+
+def get_script_dir():
+    return os.path.dirname(os.path.realpath(__file__)).replace("/utils", "")
+
+
+# Define Constants
+
+script_dir = get_script_dir()
+
+

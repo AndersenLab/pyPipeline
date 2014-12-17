@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """pyPipeline
 
 Usage:
@@ -18,6 +19,7 @@ import csv
 if __name__ == '__main__':
     opts = docopt(__doc__, version='pyPipeline')
     print opts
+
     #==================#
     # Genome Retrieval #
     #==================#
@@ -54,7 +56,7 @@ if __name__ == '__main__':
         fq_set = open(config["OPTIONS"]["fastq_set"], 'rU')
         log.info("Performing Alignment")
         for fq in csv.DictReader(fq_set, delimiter='\t', quoting=csv.QUOTE_NONE):
-            align = "{run} align.py {config_file} \"{fq}\"".format(**locals())
+            align = "{run} {script_dir}align.py {config_file} \"{fq}\"".format(**locals())
             log.info(align)
             os.system(align)
         # Merge Like Samples
