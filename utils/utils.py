@@ -108,12 +108,14 @@ def format_command(command_config):
     """
         Performs standard formatting of commands being run.
     """
-    if "__command__" in command_config:
-        first_arg = command_config["__command__"]
-    opts = ""
+    opts, first_arg = "", ""
     for k,v in command_config.items():
-        if k != "__command__":
+        if k == "_flag":
+            opts += " %s " % v
+        elif k != "__command__":
             opts += "%s %s " % (k,v)
+        else:
+            first_arg = command_config["__command__"]
     return first_arg, opts
 
 def file_exists(filename):
@@ -198,6 +200,14 @@ def is_defined(val):
 
 def get_fq_ID(fqs):
     return common_prefix(fqs).strip("-_")
+
+def get_bam_RG(bam):
+    """
+        Fetches Read Groups from the Header of SAM/BAM files
+    """
+    out, err = Popen(["samtools","view","-H",bam], stdout=PIPE).communicate()
+    RG = [x for x in out.split("\n") if x.startswith("@RG")]
+    return RG
 
 # Define Constants
 script_dir = get_script_dir()

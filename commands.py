@@ -12,7 +12,7 @@ mark_dups = """
             VALIDATION_STRINGENCY=SILENT REMOVE_DUPLICATES=true
             """
 
-merge_bams = """samtools merge {merge_options} {merged_bam_name} {constitutive_bams}"""
+merge_bams = """samtools merge {merge_options} {bam_dir}/{merged_bam_name} {bam_dir}/{SM_Bams}"""
 
 samtools_command = """ """
 

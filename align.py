@@ -39,7 +39,6 @@ else:
 	PL = "PL:ILLUMINA"
 # Note library is optional; hence it's not explicitely defined.
 RG_header = "@RG\\tID:{ID}\\t{SM}{LB}{PL}".format(**locals())
-print RG_header
 
 #=====#
 # BWA #
