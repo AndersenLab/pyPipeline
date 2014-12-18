@@ -128,7 +128,7 @@ if __name__ == '__main__':
                     ID = seq_run["ID"]
                     fq = seq_run["fq"]
                     single_bam = "{OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/{ID}.bam".format(**locals())
-                    
+                    bam_white_list.append(single_bam)
                     # Check single bam RG
                     re_align = False
                     if file_exists(single_bam):
