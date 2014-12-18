@@ -199,7 +199,25 @@ def is_defined(val):
         return True
 
 def get_fq_ID(fqs):
+    """ Returns common prefix of fastq's; stripping out select characters """
     return common_prefix(fqs).strip("-_")
+
+def construct_RG_header(ID, opts):  
+    if is_defined(opts["SM"]):
+        SM = "SM:" + opts["SM"] + "\\t"
+    else:
+        SM = ""
+    if is_defined(opts["LB"]):
+        LB = "LB:" + opts["LB"] + "\\t"
+    else:
+        LB = ""
+    if is_defined(opts["PL"]):
+        PL = "PL:" + opts["PL"]
+    else:
+        PL = "PL:ILLUMINA"
+    # Note library is optional; hence it's not explicitely defined.
+    RG_header = "@RG\\tID:{ID}\\t{LB}{SM}{PL}".format(**locals())
+    return RG_header
 
 def get_bam_RG(bam):
     """

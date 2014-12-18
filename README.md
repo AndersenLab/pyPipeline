@@ -3,6 +3,7 @@ pyPipeline
 
 ### General
 
+- [X] Alignment w/ BWA
 - [ ] Samtools/bcftools Variant Calling
 - [ ] Duplicate Reads Report / Summarization
 - [ ] Platypus Variant Calling

@@ -36,6 +36,7 @@ if __name__ == '__main__':
     #==================#
     # Genome Retrieval #
     #==================#
+
     if opts["genome"] == True:
         if opts["<name>"] is not None:
             fetch_genome(opts["<name>"])
@@ -87,44 +88,93 @@ if __name__ == '__main__':
         fq_set = open(config["OPTIONS"]["fastq_set"], 'rU')
         log.info("Performing Alignment")
         sample_set = {} # Generate a list of samples.
+        bam_white_list = [] # List of bams to keep following alignment; removes extras
+        # Construct Sample Set
         for fq in csv.DictReader(fq_set, delimiter='\t', quoting=csv.QUOTE_NONE):
             fq1, fq2 = fq["FQ1"], fq["FQ2"]
             fq["FQ1"] = "{analysis_dir}/{OPTIONS.fastq_dir}/{fq1}".format(**locals())
             fq["FQ2"] = "{analysis_dir}/{OPTIONS.fastq_dir}/{fq2}".format(**locals())
-
-
             # Construct Individual BAM Dict
             SM = fq["SM"]
             if SM not in sample_set:
                 sample_set[SM] = []
             ID = get_fq_ID([fq1, fq2])
-            sample_set[SM].append(ID + ".bam")
-            single_bam = "{OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/{ID}.bam".format(**locals())
-            completed_merged_bam = "{OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/{SM}.bam".format(**locals())
+            RG = construct_RG_header(ID, fq).replace("\\t","\t")
+            sample_info = {"ID" : ID, "RG": RG, "fq": fq}
+            sample_set[SM].append(sample_info)
 
             # Check that fq's exist before proceeding.
             check_fqs(fq)
 
-            # Has the individually aligned bam been merged into a multi-bam bam?
-            if file_exists(completed_merged_bam):
-                pass
-            # Does the individually aligned bam already exist?
-            
-            
-            if not file_exists(single_bam):
-                align = "{run} {script_dir}/align.py {config_file} \"{fq}\"".format(**locals())
-                log.info(align)
-                os.system(align)
-            else:
-                log.info("%-50s already aligned individually, skipping" % single_bam)
-        # Merge Like Samples
         for SM in sample_set.keys():
+            # Check the header of the merged bam to see if 
+            # current file already exists within
             completed_merged_bam = "{OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/{SM}.bam".format(**locals())
+
+            # Check to see if merged bam contains constitutive bams
+            if file_exists(completed_merged_bam):
+                RG = get_bam_RG(completed_merged_bam)
+                RG_ind = [x["RG"] for x in sample_set[SM]]
+                if set(RG_ind) != set(RG):
+                    # Delete merged Bam, and re-align all individual.
+                    log.info("RG do not match; deleting.")
+                    os.system("rm {completed_merged_bam}".format(**locals()))
+                else:
+                    log.info("{SM}.bam contains all specified individual bams.".format(**locals()))
+
+            # Align fastq sets
             if not file_exists(completed_merged_bam):
-                bams_to_merge = (SM, sample_set[SM])
+                for seq_run in sample_set[SM]:
+                    ID = seq_run["ID"]
+                    fq = seq_run["fq"]
+                    single_bam = "{OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/{ID}.bam".format(**locals())
+                    
+                    # Check single bam RG
+                    re_align = False
+                    if file_exists(single_bam):
+                        current_RG = get_bam_RG(single_bam)[0]
+                        single_RG_incorrect = (seq_run["RG"] != current_RG)
+                        if (seq_run["RG"] != current_RG):
+                            log.info("Readgroup for {single_bam} does not match file; deleting")
+                            os.system("rm {single_bam}; rm {single_bam}.bai".format(**locals()))
+                            re_align = True
+
+
+                    if not file_exists(single_bam) or re_align :
+                        align = "{run} {script_dir}/align.py {config_file} \"{fq}\"".format(**locals())
+                        log.info(align)
+                        os.system(align)
+                    else:
+                        log.info("%-50s already aligned individually, skipping" % single_bam)
+        #
+        # Merging
+        #
+        for SM in sample_set.keys():  
+            completed_merged_bam = "{OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/{SM}.bam".format(**locals())
+            bam_white_list.append(completed_merged_bam)
+            # Merge Bams for same samples.
+            if not file_exists(completed_merged_bam):
+                bam_set = [x["ID"] + ".bam" for x in sample_set[SM]]
+                bams_to_merge = (SM, bam_set)
                 merge_bams = "{run} {script_dir}/merge_bams.py {config_file} \"{bams_to_merge}\"".format(**locals())
                 log.info(merge_bams)
                 os.system(merge_bams)
+            else:
+                log.info("%-50s already exists with all individual bams, skipping" % completed_merged_bam)
+        
+        #
+        # Cleanup Old Files
+        # - Turn into function!!!
+        bam_dir_files = glob.glob("{OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/*bam".format(**locals()))
+        for bam_file in bam_dir_files:
+            if bam_file not in bam_white_list:
+                try:
+                    os.remove(bam_file)
+                    os.remove(bam_file + ".bai")
+                except:
+                    pass
+
+
     if analysis_type == "test":
         reference = glob.glob("{script_dir}/genomes/{OPTIONS.reference}/*gz".format(**locals()))[0]
         for i in chunk_genome(3000000, reference):

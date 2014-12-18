@@ -6,6 +6,14 @@ from commands import *
 import tempfile
 import glob
 
+# ======= #
+# Command #
+# ======= #
+
+bwa = """bwa {bwa_command} -R '{RG_header}' {bwa_options} {reference} {FQ1} {FQ2} | samtools view -bhu - > {OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/{ID}.unsorted.bam
+         samtools sort -O bam -T {tmpname} {OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/{ID}.unsorted.bam > {OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/{ID}.sorted.bam"""
+
+
 #====================#
 # Load Configuration #
 #====================#
@@ -23,22 +31,7 @@ align = COMMANDS.align # Pulls out alignment types.
 # Set up Read Group String for alignment (with bwa)
 fqs = [os.path.split(opts["FQ1"])[1], os.path.split(opts["FQ2"])[1]]
 ID = get_fq_ID(fqs)
-
-if is_defined(opts["SM"]):
-	SM = "SM:" + opts["SM"] + "\\t"
-else:
-	SM = ""
-if is_defined(opts["LB"]):
-	LB = "LB:" + opts["LB"] + "\\t"
-else:
-	LB = ""
-
-if is_defined(opts["PL"]):
-	PL = "PL:" + opts["PL"]
-else:
-	PL = "PL:ILLUMINA"
-# Note library is optional; hence it's not explicitely defined.
-RG_header = "@RG\\tID:{ID}\\t{SM}{LB}{PL}".format(**locals())
+RG_header = construct_RG_header(ID, opts)
 
 #=====#
 # BWA #
@@ -60,7 +53,7 @@ if "bwa" in align:
 		comm = bwa.format(**locals())
 		command(comm, c_log)
 		if align.alignment_options.remove_temp == True:
-			file_to_delete = "rm {OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/{ID}.unsorted.bam".format(**locals())
+			file_to_delete = "rm {unsorted_bam}".format(**locals())
 			command(file_to_delete, c_log)
 	else:
 		log.info("SKIPPING: " + completed_bam + " exists; no alignment.")
@@ -74,7 +67,7 @@ if "picard" in align:
 	if "markduplicates" in align.picard:
 		if align.picard.markduplicates == True:
 			dup_report = "{OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/{ID}.duplicate_report.txt".format(**locals())
-			if not file_exists(dup_report):
+			if not file_exists(dup_report) or not file_exists(completed_bam):
 				comm = mark_dups.format(**locals())
 				log.info("Removing Duplicates: %s.bam" % ID)
 				c_log.add(comm)
