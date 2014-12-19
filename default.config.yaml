@@ -21,7 +21,6 @@ COMMANDS:
         picard:
             markduplicates: True
         alignment_options:
-            combine_like_samples: True
             remove_temp: True
     snps:
         samtools:

@@ -131,6 +131,12 @@ def makedir(dirname):
 def is_dir(dir):
     return os.path.isdir(dir)
 
+def remove_file(file):
+    try:
+        os.remove(file)
+    except:
+        pass
+
 def command(command, log):
     """ Run a command on system and log """
     log.add(command.strip() + "\n")

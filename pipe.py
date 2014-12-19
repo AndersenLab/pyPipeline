@@ -118,7 +118,7 @@ if __name__ == '__main__':
                 if set(RG_ind) != set(RG):
                     # Delete merged Bam, and re-align all individual.
                     log.info("RG do not match; deleting.")
-                    os.system("rm {completed_merged_bam}".format(**locals()))
+                    remove_file(completed_merged_bam)
                 else:
                     log.info("{SM}.bam contains all specified individual bams.".format(**locals()))
 
@@ -136,7 +136,8 @@ if __name__ == '__main__':
                         single_RG_incorrect = (seq_run["RG"] != current_RG)
                         if (seq_run["RG"] != current_RG):
                             log.info("Readgroup for {single_bam} does not match file; deleting")
-                            os.system("rm {single_bam}; rm {single_bam}.bai".format(**locals()))
+                            remove_file(single_bam)
+                            remove_file(single_bam + ".bai")
                             re_align = True
 
 
@@ -168,11 +169,9 @@ if __name__ == '__main__':
         bam_dir_files = glob.glob("{OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/*bam".format(**locals()))
         for bam_file in bam_dir_files:
             if bam_file not in bam_white_list:
-                try:
-                    os.remove(bam_file)
-                    os.remove(bam_file + ".bai")
-                except:
-                    pass
+                remove_file(bam_file)
+                remove_file(bam_file + ".bai")
+
 
 
     if analysis_type == "test":
