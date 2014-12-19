@@ -13,7 +13,6 @@ import glob
 bwa = """bwa {bwa_command} -R '{RG_header}' {bwa_options} {reference} {FQ1} {FQ2} | samtools view -bhu - > {OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/{ID}.unsorted.bam
          samtools sort -O bam -T {tmpname} {OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/{ID}.unsorted.bam > {OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/{ID}.sorted.bam"""
 
-
 #====================#
 # Load Configuration #
 #====================#
@@ -30,7 +29,7 @@ align = COMMANDS.align # Pulls out alignment types.
 
 # Set up Read Group String for alignment (with bwa)
 fqs = [os.path.split(opts["FQ1"])[1], os.path.split(opts["FQ2"])[1]]
-ID = get_fq_ID(fqs)
+ID = opts["ID"]
 RG_header = construct_RG_header(ID, opts)
 
 #=====#
@@ -46,7 +45,7 @@ if "bwa" in align:
 
 	# Create Directories
 	makedir(OPTIONS["analysis_dir"])
-	makedir(OPTIONS["analysis_dir"] + "/bam")
+	makedir(OPTIONS["analysis_dir"] + "/" + OPTIONS.bam_dir)
 	completed_bam = "{OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/{ID}.bam".format(**locals())
 	unsorted_bam = "{OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/{ID}.unsorted.bam".format(**locals())
 	if not file_exists(completed_bam) and not file_exists(unsorted_bam):

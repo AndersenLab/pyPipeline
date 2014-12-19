@@ -33,6 +33,10 @@ if __name__ == '__main__':
     config_file = opts["<config>"]
     analysis_dir = os.getcwd()
 
+    #
+    # Add Checks here for required options
+    #
+
     #==================#
     # Genome Retrieval #
     #==================#
@@ -54,7 +58,7 @@ if __name__ == '__main__':
     """
 
     if opts["samplefile"] == True: 
-        header = "FQ1\tFQ2\tLB\tSM\tPL\n"
+        header = "FQ1\tFQ2\tID\tLB\tSM\tPL\n"
         sample_file = open(opts["<filename/dir>"] + ".txt",'w')
         sample_file.write(header)
         if is_dir(analysis_dir + "/" + opts["<filename/dir>"]):
@@ -63,7 +67,8 @@ if __name__ == '__main__':
             fastq_pairs = zip(sorted([os.path.split(x)[1] for x in fq_set if x.find("1.fq.gz") != -1]), \
                 sorted([os.path.split(x)[1] for x in fq_set if x.find("2.fq.gz") != -1]))
             for pair in fastq_pairs:
-                sample_file.write("\t".join(pair) + "\n")
+                ID = get_fq_ID(pair)
+                sample_file.write("\t".join(pair) + "\t" + ID + "\n")
         exit()
 
     #===========#
@@ -85,7 +90,7 @@ if __name__ == '__main__':
         run = "sbatch"
 
     if analysis_type == "align":
-        fq_set = open(config["OPTIONS"]["fastq_set"], 'rU')
+        fq_set = open(config["OPTIONS"]["sample_file"], 'rU')
         log.info("Performing Alignment")
         sample_set = {} # Generate a list of samples.
         bam_white_list = [] # List of bams to keep following alignment; removes extras
@@ -95,10 +100,10 @@ if __name__ == '__main__':
             fq["FQ1"] = "{analysis_dir}/{OPTIONS.fastq_dir}/{fq1}".format(**locals())
             fq["FQ2"] = "{analysis_dir}/{OPTIONS.fastq_dir}/{fq2}".format(**locals())
             # Construct Individual BAM Dict
+            ID = fq["ID"]
             SM = fq["SM"]
             if SM not in sample_set:
                 sample_set[SM] = []
-            ID = get_fq_ID([fq1, fq2])
             RG = construct_RG_header(ID, fq).replace("\\t","\t")
             sample_info = {"ID" : ID, "RG": RG, "fq": fq}
             sample_set[SM].append(sample_info)
@@ -165,13 +170,12 @@ if __name__ == '__main__':
         
         #
         # Cleanup Old Files
-        # - Turn into function!!!
+        # 
         bam_dir_files = glob.glob("{OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/*bam".format(**locals()))
         for bam_file in bam_dir_files:
             if bam_file not in bam_white_list:
                 remove_file(bam_file)
                 remove_file(bam_file + ".bai")
-
 
 
     if analysis_type == "test":

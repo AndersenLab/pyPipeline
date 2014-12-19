@@ -12,6 +12,7 @@ pyPipeline
 - [ ] Beagle
 - [ ] Email Notifications
 - [ ] Copy analysis.yaml to analysis_dir
+- [ ] Add checks for required options.
 
 ### Merging Bams
 
