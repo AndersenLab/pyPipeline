@@ -69,11 +69,13 @@ def setup_logger(config):
     return log
 
 class command_log:
-    def __init__(self, config):
+    def __init__(self, config, job_type):
         analysis_dir = config.OPTIONS.analysis_dir
-        self.log = open(analysis_dir + "/commands.log",'a')
+        self.log = open(analysis_dir + "/" + job_type + ".commands.log",'a')
     def add(self, command):
-        self.log.write(command.strip())
+        # Clean up whitespace.
+        command = re.sub("[^\S\r\n]+"," ", command).replace("\n ","\n").strip() + "\n"
+        self.log.write(command)
 
 def load_config_and_log(config, job_type = None):
     """ 
