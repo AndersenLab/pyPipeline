@@ -96,6 +96,7 @@ if __name__ == '__main__':
         sample_set = {} # Generate a list of samples.
         bam_white_list = [] # List of bams to keep following alignment; removes extras
         # Construct Sample Set
+        ID_set = [] # Used to check uniqueness of IDs
         for fq in csv.DictReader(fq_set, delimiter='\t', quoting=csv.QUOTE_NONE):
             fq1, fq2 = fq["FQ1"], fq["FQ2"]
             fq["FQ1"] = "{analysis_dir}/{OPTIONS.fastq_dir}/{fq1}".format(**locals())
@@ -103,8 +104,18 @@ if __name__ == '__main__':
             # Construct Individual BAM Dict
             ID = fq["ID"]
             SM = fq["SM"]
+
+            # Sanity Checks
+            if ID in ID_set:
+                raise Exception("IDs are not unique: %s" % ID)
+            else:
+                ID_set.append(ID)
             if SM not in sample_set:
                 sample_set[SM] = []
+            if ID == None:
+                raise Exception("No ID defined for %s" % fq)
+            if SM == None:
+                raise Exception("No sample defined for %s" % ID)
             RG = construct_RG_header(ID, fq).replace("\\t","\t")
             sample_info = {"ID" : ID, "RG": RG, "fq": fq}
             sample_set[SM].append(sample_info)
@@ -116,12 +127,13 @@ if __name__ == '__main__':
             # Check the header of the merged bam to see if 
             # current file already exists within
             completed_merged_bam = "{OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/{SM}.bam".format(**locals())
-
+            print "COMPLETED MERGED BAM", completed_merged_bam
             # Check to see if merged bam contains constitutive bams
             if file_exists(completed_merged_bam):
                 RG = get_bam_RG(completed_merged_bam)
+
                 RG_ind = [x["RG"] for x in sample_set[SM]]
-                if set(RG_ind) != set(RG):
+                if split_read_group(RG_ind) != split_read_group(RG):
                     # Delete merged Bam, and re-align all individual.
                     log.info("RG do not match; deleting.")
                     remove_file(completed_merged_bam)
@@ -141,7 +153,7 @@ if __name__ == '__main__':
                         current_RG = get_bam_RG(single_bam)[0]
                         single_RG_incorrect = (seq_run["RG"] != current_RG)
                         if (seq_run["RG"] != current_RG):
-                            log.info("Readgroup for {single_bam} does not match file; deleting")
+                            log.info("Readgroup for {single_bam} does not match file; deleting".format(**locals()))
                             remove_file(single_bam)
                             remove_file(single_bam + ".bai")
                             re_align = True
