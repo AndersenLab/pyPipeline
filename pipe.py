@@ -2,6 +2,7 @@
 """pyPipeline
 
 Usage:
+  pipe.py trim <config>
   pipe.py align <config> [--debug]
   pipe.py samplefile <filename/dir>
   pipe.py genome [<name>]
