@@ -30,6 +30,7 @@ COMMANDS:
             -t: "DP,DV,DP4,SP"
         bcftools:
              _call_variants_only: "-v"
+             "--output-type": "u"
         freebayes:
             _call_variants_only: "-v"
 

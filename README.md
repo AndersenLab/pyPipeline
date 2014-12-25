@@ -59,3 +59,4 @@ pyPipeline
 - [ ] Copy analysis.yaml to analysis_dir
 - [ ] Add checks for required options.
 - [ ] copy vs. rename single bams.
+- [X] Fix gzip vs. bgzip issue.
