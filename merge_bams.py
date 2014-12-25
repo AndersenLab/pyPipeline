@@ -32,7 +32,7 @@ if len(SM_Bams) > 1:
     merge_options = format_command(align["merge"])[1]
     merged_bam_name = SM + ".bam"
     SM_Bams = " ".join([bam_dir + "/" + x for x in SM_Bams])
-    merge_bams = """samtools merge {merge_options} {bam_dir}/{merged_bam_name} {SM_Bams}""".format(**locals())
+    merge_bams = """samtools merge -f {merge_options} {bam_dir}/{merged_bam_name} {SM_Bams}""".format(**locals())
     command(merge_bams, c_log)
 else:
     # Move single_sequence bam to merged name.
