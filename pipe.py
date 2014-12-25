@@ -3,14 +3,15 @@
 
 Usage:
   pipe.py trim <config>
-  pipe.py align <config> [--debug]
+  pipe.py align <config> [options]
   pipe.py samplefile <filename/dir>
   pipe.py genome [<name>]
-  pipe.py test <config>
+  pipe.py test <config> [options]
 
 Options:
   -h --help     Show this screen.
   --version     Show version.
+  --debug       Run in Debug Mode
 
 """
 from docopt import docopt
@@ -33,6 +34,12 @@ if __name__ == '__main__':
 
     config_file = opts["<config>"]
     analysis_dir = os.getcwd()
+
+    # Running locally or on a cluster
+    if opts["--debug"] == True:
+        run = "python"
+    else:
+        run = "sbatch"
 
     #
     # Add Checks here for required options
@@ -72,29 +79,27 @@ if __name__ == '__main__':
                 sample_file.write("\t".join(pair) + "\t" + ID + "\n")
         exit()
 
-    #===========#
-    # Alignment #
-    #===========#
+    #=======#
+    # Setup #
+    #=======#
 
-    analysis_types = ["align", "merge", "snps","indels", "test"]
-    analysis_type = [x for x in opts if opts[x] == True][0]
+    analysis_types = ["align", "merge", "snps", "indels", "test"]
+    analysis_type = [x for x in opts if opts[x] == True and x in analysis_types][0]
     # Load Configuration
     config, log, c_log = load_config_and_log(config_file, analysis_type)
     OPTIONS = config.OPTIONS
     log.info("#=== Beginning Analysis ===#")
     log.info("Running " + opts["<config>"])
-    # Running locally or on a cluster
-    if opts["--debug"] == True:
-        run = "python"
-        log.info("Using DEBUG mode")
-    else:
-        run = "sbatch"
+
+    #===========#
+    # Alignment #
+    #===========#
 
     if analysis_type == "align":
         fq_set = open(config["OPTIONS"]["sample_file"], 'rU')
         log.info("Performing Alignment")
         sample_set = {} # Generate a list of samples.
-        bam_white_list = [] # List of bams to keep following alignment; removes extras
+        bam_dir_white_list = [] # List of bams to keep following alignment; removes extras
         # Construct Sample Set
         ID_set = [] # Used to check uniqueness of IDs
         for fq in csv.DictReader(fq_set, delimiter='\t', quoting=csv.QUOTE_NONE):
@@ -127,9 +132,8 @@ if __name__ == '__main__':
             # Check the header of the merged bam to see if 
             # current file already exists within
             completed_merged_bam = "{OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/{SM}.bam".format(**locals())
-            print "COMPLETED MERGED BAM", completed_merged_bam
             # Check to see if merged bam contains constitutive bams
-            if file_exists(completed_merged_bam):
+            if file_exists(completed_merged_bam) and file_exists(completed_merged_bam + ".bai"):
                 RG = get_bam_RG(completed_merged_bam)
 
                 RG_ind = [x["RG"] for x in sample_set[SM]]
@@ -141,12 +145,14 @@ if __name__ == '__main__':
                     log.info("{SM}.bam contains all specified individual bams.".format(**locals()))
 
             # Align fastq sets
-            if not file_exists(completed_merged_bam):
+            if not file_exists(completed_merged_bam) or not file_exists(completed_merged_bam + ".bai"):
                 for seq_run in sample_set[SM]:
                     ID = seq_run["ID"]
                     fq = seq_run["fq"]
                     single_bam = "{OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/{ID}.bam".format(**locals())
-                    bam_white_list.append(single_bam)
+                    if OPTIONS.alignment_options.remove_temp == False:
+                        bam_dir_white_list.append(single_bam)
+                        bam_dir_white_list.append(single_bam + ".bai")
                     # Check single bam RG
                     re_align = False
                     if file_exists(single_bam):
@@ -170,9 +176,10 @@ if __name__ == '__main__':
         #
         for SM in sample_set.keys():  
             completed_merged_bam = "{OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/{SM}.bam".format(**locals())
-            bam_white_list.append(completed_merged_bam)
+            bam_dir_white_list.append(completed_merged_bam)
+            bam_dir_white_list.append(completed_merged_bam + ".bai")
             # Merge Bams for same samples.
-            if not file_exists(completed_merged_bam):
+            if not file_exists(completed_merged_bam) or not file_exists(completed_merged_bam + ".bai"):
                 bam_set = [x["ID"] + ".bam" for x in sample_set[SM]]
                 bams_to_merge = (SM, bam_set)
                 merge_bams = "{run} {script_dir}/merge_bams.py {config_file} \"{bams_to_merge}\"".format(**locals())
@@ -184,17 +191,19 @@ if __name__ == '__main__':
         #
         # Cleanup Old Files
         # 
-        bam_dir_files = glob.glob("{OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/*bam".format(**locals()))
+        bam_dir_files = glob.glob("{OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/*".format(**locals()))
         for bam_file in bam_dir_files:
-            if bam_file not in bam_white_list:
+            if bam_file not in bam_dir_white_list:
                 remove_file(bam_file)
-                remove_file(bam_file + ".bai")
 
-
+    #=============#
+    # SNP Calling #
+    #=============#
     if analysis_type == "test":
-        reference = glob.glob("{script_dir}/genomes/{OPTIONS.reference}/*gz".format(**locals()))[0]
-        for i in chunk_genome(3000000, reference):
-            print i
+        print "GREAT"
+        r = "{run} {script_dir}/call_snps_individual.py {config_file} '[1,2,3]'".format(**locals())
+        print r
+        os.system(r)
         
 
 

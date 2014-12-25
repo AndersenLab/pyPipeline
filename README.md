@@ -46,6 +46,12 @@ pyPipeline
 ### Analysis
 
 - [ ] Beagle
+- [ ] Deduplication Reports (Picard)
+	- [X] Data handling
+	- [ ] Report Generation
+- [ ] Fastqc Reports
+	- [ ] FQ
+	- [ ] BAM (individual+merged)
 
 ## Other
 
