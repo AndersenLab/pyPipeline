@@ -1,7 +1,5 @@
 # Variables are inherited.
 OPTIONS:
-    DEBUG_workdir: "~/Documents/tmp/data"               # REQUIRED
-    SLURM_workdir: "/lscr2/andersenlab/dec211/v2/DATA/" # REQUIRED
     cores: 5                                            # REQUIRED
     fastq_dir: "FASTQ"
     reference: "WS245"
@@ -9,34 +7,4 @@ OPTIONS:
     bam_dir: "bam"
     chrom_chunk_kb: 1000
 
-#==============#
-# Tool Options #
-#==============#
-
-# Only inherits options for commands
-# located within the analysis config file.
-COMMANDS:
-    trim:
-        adapters: NexteraPE-PE.fa
-    align:
-        bwa:
-            "__command__" : "mem" # Set as either mem, sampse, or sampe
-        picard:
-            markduplicates: True
-        alignment_options:
-            remove_temp: True
-    snps:
-        samtools:
-            -t: "DP,DV,DP4,SP"
-        bcftools:
-             _call_variants_only: "-v"
-             "--output-type": "u"
-        freebayes:
-            _call_variants_only: "-v"
-
-    indels:
-        samtools:
-            "yes" : "yes"
-        freebayes:
-            "cool" : "great"
 

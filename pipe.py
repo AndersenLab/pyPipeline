@@ -89,6 +89,7 @@ if __name__ == '__main__':
     # Load Configuration
     config, log, c_log = load_config_and_log(config_file, analysis_type)
     OPTIONS = config.OPTIONS
+    COMMANDS = config.COMMANDS
     log.info("#=== Beginning Analysis ===#")
     log.info("Running " + opts["<config>"])
 
@@ -204,18 +205,37 @@ if __name__ == '__main__':
         #
         # Individual
         #
+
         # Get list of bams
         sample_set = open(config["OPTIONS"]["sample_file"], 'rU')
         log.info("Performing Variant Calling")
+
         # Construct Sample Set
-        bam_set = [] # Used to check uniqueness of IDs
+        bam_set = []
         for row in csv.DictReader(sample_set, delimiter='\t', quoting=csv.QUOTE_NONE):
             SM = row["SM"]
-            bam_set.append(SM + ".bam")
+            bam_set.append(SM)
+            bam_file = "{OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/{SM}.bam".format(**locals())
+            if not file_exists(bam_file) or file_exists(bam_file + ".csi"):
+                raise Exception("Bam File or index does not exist: %s" % bam_file)
+        
         bam_set = set(bam_set)
-        for bam in bam_set:
-            call_snps = """{run} {script_dir}/call_snps_individual.py {config_file} \"{bam}\"""".format(**locals())
-            os.system(call_snps)
+        # Has vcf been called for given snp caller?
+        snp_callers = COMMANDS.snps
+        snp_callers = [x for x in snp_callers if x in available_snp_callers]
+        for SM in bam_set:
+            for caller in snp_callers:
+                vcf_file = "{OPTIONS.analysis_dir}/{OPTIONS.vcf_dir}/{SM}.{caller}.vcf.gz".format(**locals())
+                vcf_index_file = vcf_file + ".csi"
+                if not file_exists(vcf_file) or not file_exists(vcf_index_file):
+                    call_snps = """{run} {script_dir}/call_snps_individual.py {config_file} \"{SM}.bam\"""".format(**locals())
+                    os.system(call_snps)
+
+        # Merge individual bams
+        if COMMANDS.snps.snp_options.merge_individual_vcfs == True:
+            merge_snps = """{run} {script_dir}/merge_vcfs.py {config_file}""".format(**locals())
+            os.system(merge_snps)
+
     elif analysis_type == "snps" and opts["joint"] == True:
         #
         # Joint

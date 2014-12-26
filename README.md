@@ -10,6 +10,7 @@ pyPipeline
 
 - [X] Alignment with BWA
 - [X] Remove Optical Duplicates (Picard Tools)
+- [ ] Sbatch Job Dependencies
 - [ ] BAM Statistics Report
 - [ ] FASTQC Report
 - [ ] Duplicate Reads Report / Summarization
@@ -20,8 +21,10 @@ pyPipeline
 	- [ ] Parallelization (by chromosome; then merge)
 - [ ] Individual Calling
 	- [X] Parallelization (Across Regions)
-	- [ ] Merge Individual Samples (Option)
-- [ ] Add ability to automatically 'downgrade' VCF for viewing in IGV (temp)
+	- [X] Merge Individual Samples (Option)
+	- [ ] Rename Samples with ID (Option)
+- [ ] Sbatch Job Dependencies
+- [ ] Add function for 'downgrading' VCF for viewing in IGV (temporary)
 
 ### Callers 
 

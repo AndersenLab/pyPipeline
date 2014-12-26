@@ -47,3 +47,7 @@ if 'bcftools' in snps:
 	# Remove temporary files
 	rm_comm = """rm {OPTIONS.analysis_dir}/{OPTIONS.vcf_dir}/TMP.{SM}.*.bcftools.vcf.gz*""".format(**locals())
 	command(rm_comm, c_log)
+
+	# Rename Samples
+	
+
