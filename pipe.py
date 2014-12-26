@@ -4,6 +4,7 @@
 Usage:
   pipe.py trim <config>
   pipe.py align <config> [options]
+  pipe.py snps (individual|joint) <config> [options]
   pipe.py samplefile <filename/dir>
   pipe.py genome [<name>]
   pipe.py test <config> [options]
@@ -20,9 +21,9 @@ from utils import *
 from utils.genomes import *
 import csv
 
-def check_fqs(fq):
-    if not file_exists(fq["FQ1"]) or not file_exists(fq["FQ2"]):
-        raise Exception("File Missing; Check: {fq1}, {fq2}".format(fq1=fq["FQ1"], fq2=fq["FQ2"]))
+def check_rows(row):
+    if not file_exists(row["fq1"]) or not file_exists(row["fq2"]):
+        raise Exception("File Missing; Check: {fq1}, {fq2}".format(fq1=row["fq1"], fq2=row["fq2"]))
 
 if __name__ == '__main__':
     opts = docopt(__doc__, version='pyPipeline')
@@ -66,16 +67,16 @@ if __name__ == '__main__':
     """
 
     if opts["samplefile"] == True: 
-        header = "FQ1\tFQ2\tID\tLB\tSM\tPL\n"
+        header = "fq1\tfq2\tID\tLB\tSM\tPL\n"
         sample_file = open(opts["<filename/dir>"] + ".txt",'w')
         sample_file.write(header)
         if is_dir(analysis_dir + "/" + opts["<filename/dir>"]):
             # Construct a sample file using the directory info.
-            fq_set = glob.glob(opts["<filename/dir>"] + "/*.fq.gz")
-            fastq_pairs = zip(sorted([os.path.split(x)[1] for x in fq_set if x.find("1.fq.gz") != -1]), \
-                sorted([os.path.split(x)[1] for x in fq_set if x.find("2.fq.gz") != -1]))
+            sample_set = glob.glob(opts["<filename/dir>"] + "/*.row.gz")
+            fastq_pairs = zip(sorted([os.path.split(x)[1] for x in sample_set if x.find("1.row.gz") != -1]), \
+                sorted([os.path.split(x)[1] for x in sample_set if x.find("2.row.gz") != -1]))
             for pair in fastq_pairs:
-                ID = get_fq_ID(pair)
+                ID = get_row_ID(pair)
                 sample_file.write("\t".join(pair) + "\t" + ID + "\n")
         exit()
 
@@ -96,19 +97,19 @@ if __name__ == '__main__':
     #===========#
 
     if analysis_type == "align":
-        fq_set = open(config["OPTIONS"]["sample_file"], 'rU')
+        sample_set = open(config["OPTIONS"]["sample_file"], 'rU')
         log.info("Performing Alignment")
         sample_set = {} # Generate a list of samples.
         bam_dir_white_list = [] # List of bams to keep following alignment; removes extras
         # Construct Sample Set
         ID_set = [] # Used to check uniqueness of IDs
-        for fq in csv.DictReader(fq_set, delimiter='\t', quoting=csv.QUOTE_NONE):
-            fq1, fq2 = fq["FQ1"], fq["FQ2"]
-            fq["FQ1"] = "{analysis_dir}/{OPTIONS.fastq_dir}/{fq1}".format(**locals())
-            fq["FQ2"] = "{analysis_dir}/{OPTIONS.fastq_dir}/{fq2}".format(**locals())
+        for row in csv.DictReader(sample_set, delimiter='\t', quoting=csv.QUOTE_NONE):
+            fq1, fq2 = row["fq1"], row["fq2"]
+            row["fq1"] = "{analysis_dir}/{OPTIONS.fastq_dir}/{fq1}".format(**locals())
+            row["fq2"] = "{analysis_dir}/{OPTIONS.fastq_dir}/{fq2}".format(**locals())
             # Construct Individual BAM Dict
-            ID = fq["ID"]
-            SM = fq["SM"]
+            ID = row["ID"]
+            SM = row["SM"]
 
             # Sanity Checks
             if ID in ID_set:
@@ -118,15 +119,15 @@ if __name__ == '__main__':
             if SM not in sample_set:
                 sample_set[SM] = []
             if ID == None:
-                raise Exception("No ID defined for %s" % fq)
+                raise Exception("No ID defined for %s" % row)
             if SM == None:
                 raise Exception("No sample defined for %s" % ID)
-            RG = construct_RG_header(ID, fq).replace("\\t","\t")
-            sample_info = {"ID" : ID, "RG": RG, "fq": fq}
+            RG = construct_RG_header(ID, row).replace("\\t","\t")
+            sample_info = {"ID" : ID, "RG": RG, "row": row}
             sample_set[SM].append(sample_info)
 
-            # Check that fq's exist before proceeding.
-            check_fqs(fq)
+            # Check that row's exist before proceeding.
+            check_rows(row)
 
         for SM in sample_set.keys():
             # Check the header of the merged bam to see if 
@@ -148,7 +149,7 @@ if __name__ == '__main__':
             if not file_exists(completed_merged_bam) or not file_exists(completed_merged_bam + ".bai"):
                 for seq_run in sample_set[SM]:
                     ID = seq_run["ID"]
-                    fq = seq_run["fq"]
+                    row = seq_run["row"]
                     single_bam = "{OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/{ID}.bam".format(**locals())
                     if OPTIONS.alignment_options.remove_temp == False:
                         bam_dir_white_list.append(single_bam)
@@ -166,7 +167,7 @@ if __name__ == '__main__':
 
 
                     if not file_exists(single_bam) or re_align :
-                        align = "{run} {script_dir}/align.py {config_file} \"{fq}\"".format(**locals())
+                        align = "{run} {script_dir}/align.py {config_file} \"{row}\"".format(**locals())
                         log.info(align)
                         os.system(align)
                     else:
@@ -199,6 +200,29 @@ if __name__ == '__main__':
     #=============#
     # SNP Calling #
     #=============#
+    elif analysis_type == "snps" and opts["individual"] == True:
+        #
+        # Individual
+        #
+        # Get list of bams
+        sample_set = open(config["OPTIONS"]["sample_file"], 'rU')
+        log.info("Performing Variant Calling")
+        # Construct Sample Set
+        bam_set = [] # Used to check uniqueness of IDs
+        for row in csv.DictReader(sample_set, delimiter='\t', quoting=csv.QUOTE_NONE):
+            SM = row["SM"]
+            bam_set.append(SM + ".bam")
+        bam_set = set(bam_set)
+        for bam in bam_set:
+            call_snps = """{run} {script_dir}/call_snps_individual.py {config_file} \"{bam}\"""".format(**locals())
+            os.system(call_snps)
+    elif analysis_type == "snps" and opts["joint"] == True:
+        #
+        # Joint
+        #
+        print "JOINT ANALYSIS"
+    else:
+        exit()
     if analysis_type == "test":
         print "GREAT"
         r = "{run} {script_dir}/call_snps_individual.py {config_file} '[1,2,3]'".format(**locals())

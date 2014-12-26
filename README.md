@@ -17,7 +17,11 @@ pyPipeline
 ## Variant Calling
 
 - [ ] Joint Calling
+	- [ ] Parallelization (by chromosome; then merge)
 - [ ] Individual Calling
+	- [X] Parallelization (Across Regions)
+	- [ ] Merge Individual Samples (Option)
+- [ ] Add ability to automatically 'downgrade' VCF for viewing in IGV (temp)
 
 ### Callers 
 
