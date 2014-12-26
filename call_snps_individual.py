@@ -36,18 +36,21 @@ if 'bcftools' in snps:
 	samtools_mpileup = "samtools mpileup {samtools_options} -g -f {reference} -r __region__ {OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/{bam}".format(**locals())
 	bcftools_call = "bcftools call --skip-variants indels {bcftools_options}".format(**locals())
 	xarg_command = "REGION='__region__'; {samtools_mpileup} | {bcftools_call} -O z > {OPTIONS.analysis_dir}/{OPTIONS.vcf_dir}/TMP.{SM}.${{REGION/:/_}}.bcftools.vcf.gz && bcftools index {OPTIONS.analysis_dir}/{OPTIONS.vcf_dir}/TMP.{SM}.${{REGION/:/_}}.bcftools.vcf.gz".format(**locals())
+	
 	# Replace last colon (screws up file names)
 	bcftools = """{xargs} --arg-file="{chrom_chunks_file}" -P {OPTIONS.cores} -I {{}} sh -c '{xarg_command}' """.format(**locals()).replace("__region__","{}")
 	command(bcftools, c_log)
+	
 	# Merge, sort, and index
 	concat_list = ' '.join(["{OPTIONS.analysis_dir}/{OPTIONS.vcf_dir}/TMP.{SM}.{chunk}.bcftools.vcf.gz".format(**locals()).replace(":","_") for chunk in chrom_chunks])
 	bcftools_concat = """bcftools concat -O z {concat_list} > {OPTIONS.analysis_dir}/{OPTIONS.vcf_dir}/{SM}.bcftools.vcf.gz;
 	 					 bcftools index {OPTIONS.analysis_dir}/{OPTIONS.vcf_dir}/{SM}.bcftools.vcf.gz""".format(**locals()) 
 	command(bcftools_concat, c_log)
+	
 	# Remove temporary files
 	rm_comm = """rm {OPTIONS.analysis_dir}/{OPTIONS.vcf_dir}/TMP.{SM}.*.bcftools.vcf.gz*""".format(**locals())
 	command(rm_comm, c_log)
 
-	# Rename Samples
-	
+	# <-- Rename Samples here -->
+
 
