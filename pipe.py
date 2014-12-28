@@ -94,6 +94,9 @@ if __name__ == '__main__':
     bam_dir = "{OPTIONS.analysis_dir}/{OPTIONS.bam_dir}".format(**locals())
     vcf_dir = "{OPTIONS.analysis_dir}/{OPTIONS.vcf_dir}".format(**locals())
     
+    snp_callers = COMMANDS.snps
+    snp_callers = [x for x in snp_callers if x in available_snp_callers]
+
     log.info("#=== Beginning Analysis ===#")
     log.info("Running " + opts["<config>"])
 
@@ -225,31 +228,40 @@ if __name__ == '__main__':
         
         bam_set = set(bam_set)
         # Has vcf been called for given snp caller?
-        snp_callers = COMMANDS.snps
-        snp_callers = [x for x in snp_callers if x in available_snp_callers]
         for SM in bam_set:
             for caller in snp_callers:
                 union_vcf_file = "{vcf_dir}/{SM}.{caller}.union.vcf.gz".format(**locals())
                 union_vcf_index_file = union_vcf_file + ".csi"
                 variant_files = [union_vcf_file, union_vcf_index_file]
                 union_variant_file = "{OPTIONS.analysis_dir}/{caller}.{OPTIONS.union_variants}.txt".format(**locals())
-                
                 complete_individual = "{vcf_dir}/{SM}.bcftools.individual.vcf.gz".format(**locals())
                 individual_vcfs_check = (not file_exists(complete_individual) and COMMANDS.snps.snp_options.remove_temp == False)
-                print individual_vcfs_check
                 if not all(map(file_exists, variant_files )) or not file_exists(union_variant_file) or individual_vcfs_check:
                     call_snps = """{run} {script_dir}/call_snps_individual.py {config_file} \"{SM}.bam\"""".format(**locals())
                     os.system(call_snps)
         # Merge individual bams
         if COMMANDS.snps.snp_options.merge_individual_vcfs == True:
-            merge_snps = """{run} {script_dir}/merge_vcfs.py {config_file}""".format(**locals())
+            merge_snps = """{run} {script_dir}/merge_vcfs_individual.py {config_file}""".format(**locals())
             os.system(merge_snps)
 
     elif analysis_type == "snps" and opts["joint"] == True:
         #
         # Joint
         #
-        print "JOINT ANALYSIS"
+        reference = glob.glob("{script_dir}/genomes/{OPTIONS.reference}/*gz".format(**locals()))[0]
+        chunks = [x for x in chunk_genome(OPTIONS.chrom_chunk_kb,reference)]
+        for caller in snp_callers:
+            for chunk in chunks:
+                # Check that chunk does not exist.
+                vcf_file = "{vcf_dir}/{vcf_dir}/TMP.joint.{chunk}.{caller}.vcf.gz".format(**locals())
+                merged_vcf_name = "{vcf_dir}/joint.{caller}.vcf.gz".format(**locals())
+                merged_file_exists = file_exists(merged_vcf_name) and file_exists(merged_vcf_name + ".csi")
+                if (not file_exists(vcf_file) or not file_exists(vcf_file + ".csi")) and not merged_file_exists:
+                    call_snps = """{run} {script_dir}/call_snps_joint.py {config_file} \"{chunk}\"""".format(**locals())
+                    os.system(call_snps)
+        merge_snps = """{run} {script_dir}/concat_vcfs_joint.py {config_file}""".format(**locals())
+        os.system(merge_snps)
+
     else:
         exit()
     if analysis_type == "test":

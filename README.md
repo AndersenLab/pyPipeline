@@ -17,14 +17,17 @@ pyPipeline
 
 ## Variant Calling
 
-- [ ] Joint Calling
-	- [ ] Parallelization (by chromosome; then merge)
+- [X] Joint Calling
+	- [X] Parallelization (by chromosome; then merge)
 	- [ ] Filters
-	- [ ] Heterozygous Polarization Filter
+		- [X] Soft
+		- [ ] Hard
+	- [X] Heterozygous Polarization Filter
 - [X] Individual Calling
 	- [X] Parallelization (Across Regions)
 	- [X] Merge Individual Samples (Option)
 	- [X] Standard Filters
+		- [ ] Hard Filters
 	- [X] Remove individual(temp files; option)
 	- [X] Heterozygous Polarization Filter
 	- [X] Generate joint sites
@@ -34,13 +37,13 @@ pyPipeline
 
 ### Callers 
 
-- [ ] Samtools/bcftools
+- [X] Samtools/bcftools
 - [ ] Freebayes
 - [ ] Platypus
 
 ### Filters
 
-- [ ] Soft-Filtering
+- [X] Soft-Filtering
 - [ ] Hard Filtering
 
 ### Variant Comparison

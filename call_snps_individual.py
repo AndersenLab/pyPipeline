@@ -15,7 +15,7 @@ SM = bam.replace(".bam","")
 config, log, c_log = load_config_and_log(sys.argv[1], "snps")
 OPTIONS = config.OPTIONS
 COMMANDS = config.COMMANDS
-snps = COMMANDS.snps # Pulls out snp types.
+snps = COMMANDS.snps # Pulls out snp options.
 reference = glob.glob("{script_dir}/genomes/{OPTIONS.reference}/*gz".format(**locals()))[0]
 
 vcf_dir = "{OPTIONS.analysis_dir}/{OPTIONS.vcf_dir}".format(**locals())
@@ -38,7 +38,7 @@ if 'bcftools' in snps:
 
 	complete_individual = "{vcf_dir}/{SM}.bcftools.individual.vcf.gz".format(**locals())
 	individual_vcfs_check = (not file_exists(complete_individual) and COMMANDS.snps.snp_options.remove_temp == True)
-	if individual_vcfs_check and file_exists(ind_union_variant_set):
+	if not individual_vcfs_check and file_exists(ind_union_variant_set):
 		ind_union_filename = "union"
 		call_union_sites = " -T {ind_union_variant_set} ".format(**locals())
 		output_all_sites = True
@@ -69,7 +69,6 @@ if 'bcftools' in snps:
 		#=========#
 		# Filters #
 		#=========#
-		# Setup Filters here.
 
 		# Heterozygous Polarization
 		if COMMANDS.snps.bcftools.__heterozygous_polarization == True:
@@ -80,7 +79,6 @@ if 'bcftools' in snps:
 		soft_filters = COMMANDS.snps.bcftools.__soft_filters
 		hard_filters = COMMANDS.snps.bcftools.__hard_filters
 		filters += construct_filters(COMMANDS.snps.bcftools.__soft_filters)
-		print filters
 		# Merge, sort, and index
 		concat_list = ' '.join(["{vcf_dir}/TMP.{SM}.{chunk}.bcftools.{ind_union_filename}.vcf.gz".format(**locals()).replace(":","_") for chunk in chrom_chunks])
 		bcftools_concat = """bcftools concat -O z {concat_list} {filters} > {complete_ind_vcf};
