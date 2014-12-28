@@ -29,7 +29,7 @@ def main():
             sys.stdout.write(l)
         elif l.startswith("#"):
             # Add Info line for het polarization flag
-            if l.startswith("##INFO") and format_added == False:
+            if l.startswith("##FORMAT") and format_added == False:
                 format_added = True
                 sys.stdout.write("##FORMAT=<ID=HP,Number=1,Type=String,Description=\"Flag used to mark whether a variant was polarized\">\n")
             # Pass comment lines.
