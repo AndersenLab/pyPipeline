@@ -29,28 +29,58 @@ with open(chrom_chunks_file, "w+") as f:
 #==========#
 # BCFTools #
 #==========#
-
 if 'bcftools' in snps:
-	samtools_options = format_command(snps["samtools"])
-	bcftools_options = format_command(snps["bcftools"])
-	samtools_mpileup = "samtools mpileup {samtools_options} -g -f {reference} -r __region__ {OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/{bam}".format(**locals())
-	bcftools_call = "bcftools call --skip-variants indels {bcftools_options}".format(**locals())
-	xarg_command = "REGION='__region__'; {samtools_mpileup} | {bcftools_call} -O z > {OPTIONS.analysis_dir}/{OPTIONS.vcf_dir}/TMP.{SM}.${{REGION/:/_}}.bcftools.vcf.gz && bcftools index {OPTIONS.analysis_dir}/{OPTIONS.vcf_dir}/TMP.{SM}.${{REGION/:/_}}.bcftools.vcf.gz".format(**locals())
-	
-	# Replace last colon (screws up file names)
-	bcftools = """{xargs} --arg-file="{chrom_chunks_file}" -P {OPTIONS.cores} -I {{}} sh -c '{xarg_command}' """.format(**locals()).replace("__region__","{}")
-	command(bcftools, c_log)
-	
-	# Merge, sort, and index
-	concat_list = ' '.join(["{OPTIONS.analysis_dir}/{OPTIONS.vcf_dir}/TMP.{SM}.{chunk}.bcftools.vcf.gz".format(**locals()).replace(":","_") for chunk in chrom_chunks])
-	bcftools_concat = """bcftools concat -O z {concat_list} > {OPTIONS.analysis_dir}/{OPTIONS.vcf_dir}/{SM}.bcftools.vcf.gz;
-	 					 bcftools index {OPTIONS.analysis_dir}/{OPTIONS.vcf_dir}/{SM}.bcftools.vcf.gz""".format(**locals()) 
-	command(bcftools_concat, c_log)
-	
-	# Remove temporary files
-	rm_comm = """rm {OPTIONS.analysis_dir}/{OPTIONS.vcf_dir}/TMP.{SM}.*.bcftools.vcf.gz*""".format(**locals())
-	command(rm_comm, c_log)
+	# Test to see if a union set of variants has been constructed
+	ind_union_variant_set = "{OPTIONS.analysis_dir}/bcftools.{OPTIONS.union_variants}.txt".format(**locals())
 
-	# <-- Rename Samples here -->
+	if file_exists(ind_union_variant_set):
+		ind_union_filename = "union"
+		call_union_sites = " -T {ind_union_variant_set} ".format(**locals())
+		output_all_sites = True
+	else:
+		ind_union_filename = "individual"
+		call_union_sites = ""
+		output_all_sites = False
+
+	# Completed File Name
+	complete_ind_vcf = "{OPTIONS.analysis_dir}/{OPTIONS.vcf_dir}/{SM}.bcftools.{ind_union_filename}.vcf.gz".format(**locals())
+	print complete_ind_vcf
+	if not file_exists(complete_ind_vcf):
+		samtools_options = format_command(snps["samtools"])
+		bcftools_options = format_command(snps["bcftools"])
+		samtools_mpileup = "samtools mpileup {samtools_options} -g -f {reference} -r __region__ {OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/{bam}".format(**locals())
+		
+		bcftools_call = "bcftools call --skip-variants indels {bcftools_options} {call_union_sites} ".format(**locals())
+
+		# When calling union vcf files, output all sites, not just variant ones.
+		if output_all_sites == True:
+			bcftools_call = bcftools_call.replace(" -v ", "")
+
+		xarg_command = "REGION='__region__'; {samtools_mpileup} | {bcftools_call} -O z > {OPTIONS.analysis_dir}/{OPTIONS.vcf_dir}/TMP.{SM}.${{REGION/:/_}}.bcftools.{ind_union_filename}.vcf.gz && bcftools index {OPTIONS.analysis_dir}/{OPTIONS.vcf_dir}/TMP.{SM}.${{REGION/:/_}}.bcftools.{ind_union_filename}.vcf.gz".format(**locals())
+		
+		# Replace last colon (screws up file names)
+		bcftools = """{xargs} --arg-file="{chrom_chunks_file}" -P {OPTIONS.cores} -I {{}} sh -c '{xarg_command}' """.format(**locals()).replace("__region__","{}")
+		command(bcftools, c_log)
+		
+		#=========#
+		# Filters #
+		#=========#
+		# Setup Filters here.
+		soft_filters = COMMANDS.snps.bcftools.__soft_filters
+		hard_filters = COMMANDS.snps.bcftools.__hard_filters
+		print "HARD FILTERS", hard_filters
+		filters = construct_filters(COMMANDS.snps.bcftools.__soft_filters)
+
+
+		# Merge, sort, and index
+		concat_list = ' '.join(["{OPTIONS.analysis_dir}/{OPTIONS.vcf_dir}/TMP.{SM}.{chunk}.bcftools.{ind_union_filename}.vcf.gz".format(**locals()).replace(":","_") for chunk in chrom_chunks])
+		bcftools_concat = """bcftools concat -O z {concat_list} {filters} > {complete_ind_vcf};
+		 					 bcftools index {complete_ind_vcf}""".format(**locals()) 
+		command(bcftools_concat, c_log)
+		
+		# Remove temporary files
+		rm_comm = """rm {OPTIONS.analysis_dir}/{OPTIONS.vcf_dir}/TMP.{SM}.*.bcftools.{ind_union_filename}.vcf.gz*""".format(**locals())
+		command(rm_comm, c_log)
+
 
 

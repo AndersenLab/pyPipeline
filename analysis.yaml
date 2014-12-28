@@ -1,0 +1,47 @@
+# Variables are inherited.
+OPTIONS:
+    DEBUG_workdir: "~/Documents/tmp/data"               # REQUIRED
+    SLURM_workdir: "/lscr2/andersenlab/dec211/v2/DATA/" # REQUIRED
+    cores: 4                                            # REQUIRED
+    fastq_dir: "FASTQ"
+    reference: "WS245"
+    analysis_dir: "testing"
+    bam_dir: "bam2"
+    vcf_dir: "vcf"
+    union_variants: "union" # suffix used to designate union file to use with caller.
+    sample_file: "FASTQ.txt"
+    chrom_chunk_kb: 100000
+
+#==============#
+# Tool Options #
+#==============#
+
+# Only inherits options for commands
+# located within the analysis config file.
+COMMANDS:
+    align:
+        bwa:
+        picard:
+            markduplicates: True
+        alignment_options:
+            remove_temp: True
+    snps:
+        samtools:
+            -t: "DP,DV,DP4,SP"
+        bcftools:
+            _call_variants_only: "-v"
+            _call_type: "-c"
+            __soft_filters:
+                MIN_DEPTH: 'DP < 3'
+            __hard_filters:
+            __heterozygous_polarization: True
+        snp_options:
+            merge_individual_vcfs: True
+            remove_temp: True
+            test: False
+    indels:
+        samtools:
+            "yes" : "yes"
+        freebayes:
+            "cool" : "great"
+

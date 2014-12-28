@@ -20,12 +20,15 @@ pyPipeline
 - [ ] Joint Calling
 	- [ ] Parallelization (by chromosome; then merge)
 	- [ ] Filters
+	- [ ] Heterozygous Polarization Filter
 - [ ] Individual Calling
 	- [X] Parallelization (Across Regions)
 	- [X] Merge Individual Samples (Option)
-	- [ ] Filters
-	- [ ] Rename Samples with ID (Option)
-	- [ ] Test if all samples are located within merged vcf.
+	- [X] Standard Filters
+	- [ ] Remove individual
+	- [ ] Heterozygous Polarization Filter
+	- [X] Generate joint sites
+	- [X] Recall with joint variant set
 - [ ] Sbatch Job Dependencies
 - [ ] Add function for 'downgrading' VCF for viewing in IGV (temporary)
 
