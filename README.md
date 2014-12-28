@@ -21,12 +21,12 @@ pyPipeline
 	- [ ] Parallelization (by chromosome; then merge)
 	- [ ] Filters
 	- [ ] Heterozygous Polarization Filter
-- [ ] Individual Calling
+- [X] Individual Calling
 	- [X] Parallelization (Across Regions)
 	- [X] Merge Individual Samples (Option)
 	- [X] Standard Filters
-	- [ ] Remove individual
-	- [ ] Heterozygous Polarization Filter
+	- [X] Remove individual(temp files; option)
+	- [X] Heterozygous Polarization Filter
 	- [X] Generate joint sites
 	- [X] Recall with joint variant set
 - [ ] Sbatch Job Dependencies
@@ -62,9 +62,11 @@ pyPipeline
 - [ ] Deduplication Reports (Picard)
 	- [X] Data handling
 	- [ ] Report Generation
+- [ ] Heterozygous Polarization Reports
 - [ ] Fastqc Reports
 	- [ ] FQ
 	- [ ] BAM (individual+merged)
+- [ ] Comparative Reports
 
 ## Other
 

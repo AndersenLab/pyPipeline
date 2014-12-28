@@ -29,9 +29,9 @@ if __name__ == '__main__':
     opts = docopt(__doc__, version='pyPipeline')
     print opts
 
-    #=======#
-    # Setup #
-    #=======#
+    #========#
+    # Basics #
+    #========#
 
     config_file = opts["<config>"]
     analysis_dir = os.getcwd()
@@ -90,6 +90,10 @@ if __name__ == '__main__':
     config, log, c_log = load_config_and_log(config_file, analysis_type)
     OPTIONS = config.OPTIONS
     COMMANDS = config.COMMANDS
+
+    bam_dir = "{OPTIONS.analysis_dir}/{OPTIONS.bam_dir}".format(**locals())
+    vcf_dir = "{OPTIONS.analysis_dir}/{OPTIONS.vcf_dir}".format(**locals())
+    
     log.info("#=== Beginning Analysis ===#")
     log.info("Running " + opts["<config>"])
 
@@ -133,7 +137,7 @@ if __name__ == '__main__':
         for SM in sample_set.keys():
             # Check the header of the merged bam to see if 
             # current file already exists within
-            completed_merged_bam = "{OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/{SM}.bam".format(**locals())
+            completed_merged_bam = "{bam_dir}/{SM}.bam".format(**locals())
             # Check to see if merged bam contains constitutive bams
             if file_exists(completed_merged_bam) and file_exists(completed_merged_bam + ".bai"):
                 RG = get_bam_RG(completed_merged_bam)
@@ -151,7 +155,7 @@ if __name__ == '__main__':
                 for seq_run in sample_set[SM]:
                     ID = seq_run["ID"]
                     row = seq_run["row"]
-                    single_bam = "{OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/{ID}.bam".format(**locals())
+                    single_bam = "{bam_dir}/{ID}.bam".format(**locals())
                     if OPTIONS.alignment_options.remove_temp == False:
                         bam_dir_white_list.append(single_bam)
                         bam_dir_white_list.append(single_bam + ".bai")
@@ -177,7 +181,7 @@ if __name__ == '__main__':
         # Merging
         #
         for SM in sample_set.keys():  
-            completed_merged_bam = "{OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/{SM}.bam".format(**locals())
+            completed_merged_bam = "{bam_dir}/{SM}.bam".format(**locals())
             bam_dir_white_list.append(completed_merged_bam)
             bam_dir_white_list.append(completed_merged_bam + ".bai")
             # Merge Bams for same samples.
@@ -193,7 +197,7 @@ if __name__ == '__main__':
         #
         # Cleanup Old Files
         # 
-        bam_dir_files = glob.glob("{OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/*".format(**locals()))
+        bam_dir_files = glob.glob("{bam_dir}/*".format(**locals()))
         for bam_file in bam_dir_files:
             if bam_file not in bam_dir_white_list:
                 remove_file(bam_file)
@@ -203,7 +207,7 @@ if __name__ == '__main__':
     #=============#
     elif analysis_type == "snps" and opts["individual"] == True:
         #
-        # Individual - Needs to be run twice to generate joint output
+        # Individual - Needs to be run twice to generate union output
         #
 
         # Get list of bams
@@ -215,7 +219,7 @@ if __name__ == '__main__':
         for row in csv.DictReader(sample_set, delimiter='\t', quoting=csv.QUOTE_NONE):
             SM = row["SM"]
             bam_set.append(SM)
-            bam_file = "{OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/{SM}.bam".format(**locals())
+            bam_file = "{bam_dir}/{SM}.bam".format(**locals())
             if not file_exists(bam_file) or file_exists(bam_file + ".csi"):
                 raise Exception("Bam File or index does not exist: %s" % bam_file)
         
@@ -225,11 +229,15 @@ if __name__ == '__main__':
         snp_callers = [x for x in snp_callers if x in available_snp_callers]
         for SM in bam_set:
             for caller in snp_callers:
-                union_vcf_file = "{OPTIONS.analysis_dir}/{OPTIONS.vcf_dir}/{SM}.{caller}.union.vcf.gz".format(**locals())
+                union_vcf_file = "{vcf_dir}/{SM}.{caller}.union.vcf.gz".format(**locals())
                 union_vcf_index_file = union_vcf_file + ".csi"
                 variant_files = [union_vcf_file, union_vcf_index_file]
                 union_variant_file = "{OPTIONS.analysis_dir}/{caller}.{OPTIONS.union_variants}.txt".format(**locals())
-                if not all(map(file_exists, variant_files )) or not file_exists(union_variant_file):
+                
+                complete_individual = "{vcf_dir}/{SM}.bcftools.individual.vcf.gz".format(**locals())
+                individual_vcfs_check = (not file_exists(complete_individual) and COMMANDS.snps.snp_options.remove_temp == False)
+                print individual_vcfs_check
+                if not all(map(file_exists, variant_files )) or not file_exists(union_variant_file) or individual_vcfs_check:
                     call_snps = """{run} {script_dir}/call_snps_individual.py {config_file} \"{SM}.bam\"""".format(**locals())
                     os.system(call_snps)
         # Merge individual bams

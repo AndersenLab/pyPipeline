@@ -37,8 +37,7 @@ COMMANDS:
             __heterozygous_polarization: True
         snp_options:
             merge_individual_vcfs: True
-            remove_temp: True
-            test: False
+            remove_temp: False
     indels:
         samtools:
             "yes" : "yes"
