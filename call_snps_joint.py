@@ -1,4 +1,4 @@
-#/usr/bin/python
+#!/usr/bin/python
 import sys, os
 from ast import literal_eval
 from utils import *
@@ -18,7 +18,7 @@ config, log, c_log = load_config_and_log(sys.argv[1], "snps")
 OPTIONS = config.OPTIONS
 COMMANDS = config.COMMANDS
 snps = COMMANDS.snps # Pulls out snp options.
-reference = glob.glob("{script_dir}/genomes/{OPTIONS.reference}/*gz".format(**locals()))[0]
+reference = glob.glob("{script_dir}/genomes/{OPTIONS.reference}/*fa.gz".format(**locals()))[0]
 
 vcf_dir = "{OPTIONS.analysis_dir}/{OPTIONS.vcf_dir}".format(**locals())
 bam_dir = "{OPTIONS.analysis_dir}/{OPTIONS.bam_dir}".format(**locals())

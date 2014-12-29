@@ -1,4 +1,4 @@
-#/usr/bin/python
+#!/usr/bin/python
 import sys, os
 from ast import literal_eval
 from utils import *
@@ -31,7 +31,7 @@ merge_vcfs = """bcftools concat -O z {vcf_list_string} > {merged_vcf_name};
 
 snp_callers = COMMANDS.snps
 snp_callers = [x for x in snp_callers if x in available_snp_callers]
-reference = glob.glob("{script_dir}/genomes/{OPTIONS.reference}/*gz".format(**locals()))[0]
+reference = glob.glob("{script_dir}/genomes/{OPTIONS.reference}/*fa.gz".format(**locals()))[0]
 chunks = [x.replace(":","_") for x in chunk_genome(OPTIONS.chrom_chunk_kb,reference)]
 
 for caller in snp_callers:

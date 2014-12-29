@@ -30,19 +30,24 @@ def submit_job(command, dependencies = None, dep_type = "afterok"):
     log.info(command)
     if opts["--debug"] == False:
         if dependencies is not None:
-            dependencies = ':'.join(dependencies)
-            depends_on = "--dependency={dep_type}:".format(**locals())
-            depends_on += dependencies
-            command = ' '.join(command.split(" ").insert(1, depends_on))
+            if len(dependencies) > 0:
+                dependencies = ':'.join(dependencies)
+                depends_on = "--dependency={dep_type}:".format(**locals())
+                depends_on += dependencies
+            else:
+                depends_on = ""
+            command = command.split(" ")
+            command.insert(1, depends_on)
+            command = ' '.join(command)
         else:
             depends_on = ""
+        print command
         jobid, err = Popen(command, stdout=PIPE, stderr=PIPE, shell=True).communicate()
         jobid = jobid.strip().split(" ")[-1]
         if jobid.isdigit() == False:
             raise Exception("Error submitting %s" % jobid)
             exit()
         else:
-            dependency_list[SM].append(jobid)
             return jobid
     else:
         os.system(command)
@@ -115,7 +120,7 @@ if __name__ == '__main__':
         run = "python"
         log_files = ""
     else:
-        run = "sbatch --output={log_dir}/%j.txt --error={log_dir}/%j.err "
+        run = "sbatch --output={log_dir}/%j.txt --error={log_dir}/%j.err ".format(**locals())
 
     bam_dir = "{OPTIONS.analysis_dir}/{OPTIONS.bam_dir}".format(**locals())
     vcf_dir = "{OPTIONS.analysis_dir}/{OPTIONS.vcf_dir}".format(**locals())
@@ -125,6 +130,8 @@ if __name__ == '__main__':
 
     log.info("#=== Beginning Analysis ===#")
     log.info("Running " + opts["<config>"])
+
+    reference = glob.glob("{script_dir}/genomes/{OPTIONS.reference}/*fa.gz".format(**locals()))[0]
 
     #======#
     # Trim #
@@ -205,7 +212,8 @@ if __name__ == '__main__':
                     # Check single bam RG
                     re_align = False
                     if file_exists(single_bam):
-                        current_RG = get_bam_RG(single_bam)[0]
+                        current_RG = sorted(get_bam_RG(single_bam)[0].split("\t"))
+                        seq_run["RG"] = sorted(seq_run["RG"].split("\t"))
                         single_RG_incorrect = (seq_run["RG"] != current_RG)
                         if (seq_run["RG"] != current_RG):
                             log.info("Readgroup for {single_bam} does not match file; deleting".format(**locals()))
@@ -213,13 +221,13 @@ if __name__ == '__main__':
                             remove_file(single_bam + ".bai")
                             re_align = True
 
-
                     if not file_exists(single_bam) or re_align:
                         align = "{run} {script_dir}/align.py {config_file} \"{row}\"".format(**locals())
                         jobid = submit_job(align)
                         dependency_list[SM].append(jobid)
                     else:
                         log.info("%-50s already aligned individually, skipping" % single_bam)
+
         #
         # Merging
         #
@@ -233,11 +241,13 @@ if __name__ == '__main__':
                 bams_to_merge = (SM, bam_set)
 
                 merge_bams = "{run} {script_dir}/merge_bams.py {config_file} \"{bams_to_merge}\"".format(**locals())
-                jobid = submit_job(merge_bams, dependency_list[SM], "after")
+                jobid = submit_job(merge_bams, dependency_list[SM], "afterok")
+                print jobid
                 if opts["--debug"] == False:
                     print("Submitted merge:{SM}; depends on: {ls}".format(SM=SM, ls=','.join(dependency_list[SM])))
             else:
                 log.info("%-50s already exists with all individual bams, skipping" % completed_merged_bam)
+
     #=============#
     # SNP Calling #
     #=============#
@@ -281,19 +291,24 @@ if __name__ == '__main__':
         #
         # Joint
         #
-        reference = glob.glob("{script_dir}/genomes/{OPTIONS.reference}/*gz".format(**locals()))[0]
+        dependency_list = []
         chunks = [x for x in chunk_genome(OPTIONS.chrom_chunk_kb,reference)]
         for caller in snp_callers:
+            merged_vcf_name = "{vcf_dir}/joint.{caller}.vcf.gz".format(**locals())
+            merged_file_exists = file_exists(merged_vcf_name) and file_exists(merged_vcf_name + ".csi")
             for chunk in chunks:
                 # Check that chunk does not exist.
-                vcf_file = "{vcf_dir}/{vcf_dir}/TMP.joint.{chunk}.{caller}.vcf.gz".format(**locals())
-                merged_vcf_name = "{vcf_dir}/joint.{caller}.vcf.gz".format(**locals())
-                merged_file_exists = file_exists(merged_vcf_name) and file_exists(merged_vcf_name + ".csi")
+                chunk_sanitized = chunk.replace(":","_")
+                vcf_file = "{vcf_dir}/TMP.joint.{chunk_sanitized}.{caller}.vcf.gz".format(**locals())
                 if (not file_exists(vcf_file) or not file_exists(vcf_file + ".csi")) and not merged_file_exists:
                     call_snps = """{run} {script_dir}/call_snps_joint.py {config_file} \"{chunk}\"""".format(**locals())
-                    os.system(call_snps)
-        merge_snps = """{run} {script_dir}/concat_vcfs_joint.py {config_file}""".format(**locals())
-        os.system(merge_snps)
+                    jobid = submit_job(call_snps)
+                    dependency_list.append(jobid)
+        if not merged_file_exists:
+            merge_snps = """{run} {script_dir}/concat_vcfs_joint.py {config_file}""".format(**locals())
+            submit_job(merge_snps, dependency_list)
+        else:
+            print("Merged File Already Exists")
 
     else:
         exit()
