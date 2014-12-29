@@ -16,7 +16,7 @@ config, log, c_log = load_config_and_log(sys.argv[1], "snps")
 OPTIONS = config.OPTIONS
 COMMANDS = config.COMMANDS
 snps = COMMANDS.snps # Pulls out snp options.
-reference = glob.glob("{script_dir}/genomes/{OPTIONS.reference}/*gz".format(**locals()))[0]
+reference = glob.glob("{script_dir}/genomes/{OPTIONS.reference}/*fa.gz".format(**locals()))[0]
 
 vcf_dir = "{OPTIONS.analysis_dir}/{OPTIONS.vcf_dir}".format(**locals())
 makedir("{vcf_dir}".format(**locals()))
@@ -63,7 +63,7 @@ if 'bcftools' in snps:
 		xarg_command = "REGION='__region__'; {samtools_mpileup} | {bcftools_call} -O z > {vcf_dir}/TMP.{SM}.${{REGION/:/_}}.bcftools.{ind_union_filename}.vcf.gz && bcftools index {vcf_dir}/TMP.{SM}.${{REGION/:/_}}.bcftools.{ind_union_filename}.vcf.gz".format(**locals())
 		
 		# Replace last colon (screws up file names)
-		bcftools = """{xargs} --arg-file="{chrom_chunks_file}" -P {OPTIONS.cores} -I {{}} sh -c '{xarg_command}' """.format(**locals()).replace("__region__","{}")
+		bcftools = """{xargs} --arg-file="{chrom_chunks_file}" -P {OPTIONS.cores} -I {{}} bash -c '{xarg_command}' """.format(**locals()).replace("__region__","{}")
 		command(bcftools, c_log)
 		
 		#=========#

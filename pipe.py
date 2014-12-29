@@ -271,6 +271,7 @@ if __name__ == '__main__':
         
         bam_set = set(bam_set)
         # Has vcf been called for given snp caller?
+        dependency_list = []
         for SM in bam_set:
             for caller in snp_callers:
                 union_vcf_file = "{vcf_dir}/{SM}.{caller}.union.vcf.gz".format(**locals())
@@ -281,11 +282,12 @@ if __name__ == '__main__':
                 individual_vcfs_check = (not file_exists(complete_individual) and COMMANDS.snps.snp_options.remove_temp == False)
                 if not all(map(file_exists, variant_files )) or not file_exists(union_variant_file) or individual_vcfs_check:
                     call_snps = """{run} {script_dir}/call_snps_individual.py {config_file} \"{SM}.bam\"""".format(**locals())
-                    os.system(call_snps)
+                    jobid = submit_job(call_snps)
+                    dependency_list.append(jobid)
         # Merge individual bams
         if COMMANDS.snps.snp_options.merge_individual_vcfs == True:
             merge_snps = """{run} {script_dir}/merge_vcfs_individual.py {config_file}""".format(**locals())
-            os.system(merge_snps)
+            submit_job(merge_snps, dependency_list)
 
     elif analysis_type == "snps" and opts["joint"] == True:
         #
