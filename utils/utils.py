@@ -1,7 +1,18 @@
 import os,sys
+import re
 import yaml
 from subprocess import Popen, PIPE
 import logging
+
+
+#======================#
+# Set System Specifics #
+#======================#
+
+if os.uname()[0] == "Darwin":
+    xargs = "gxargs"
+else:
+    xargs = "xargs"
 
 class dotdictify(dict):
     """
@@ -43,6 +54,7 @@ def chunk_genome(chunk_size, reference):
     # Parsing .ann files
     contigs = [x.split(" ")[1] for x in ann.split("\n")[1:-1:1]][::2]
     contig_sizes = map(int,[x.split(" ")[1] for x in ann.split("\n")[1:-1:1]][1::2])
+    chunk_size *= 1000
     for chrom, size in zip(contigs, contig_sizes):
         for chunk in xrange(1,size, chunk_size):
             if chunk + chunk_size > size:
@@ -51,7 +63,20 @@ def chunk_genome(chunk_size, reference):
                 chunk_end = chunk + chunk_size-1
             yield "{chrom}:{chunk}-{chunk_end}".format(**locals())
 
-    
+
+def construct_filters(filter_list, soft=True):
+    """ Constructs set of piped filters """
+    if len(filter_list) > 0:
+        filter_command = []
+        for k,v in filter_list.items():
+            if soft == True:
+                filter_command.append("bcftools filter -O u --soft-filter {k} --exclude '{v}'".format(**locals()))
+            else:
+                filter_command.append("bcftools filter -O u --exclude '{v}'".format(**locals()))
+        return '| ' + ' | '.join(filter_command) + ' | bcftools view -O z '
+    else:
+        return ''
+
 def setup_logger(config):
     # Set up Logger
     log = logging.getLogger("pyPipeline")
@@ -77,6 +102,14 @@ class command_log:
         command = re.sub("[^\S\r\n]+"," ", command).replace("\n ","\n").strip() + "\n"
         self.log.write(command)
 
+
+def split_read_group(RG):
+    RG_set = []
+    for val in RG:
+        val = sorted([x.split(":") for x in val.split("\t")[1:]])
+        RG_set.append(val)
+    return sorted(RG_set)
+
 def load_config_and_log(config, job_type = None):
     """ 
         Loads the configuration file
@@ -91,34 +124,28 @@ def load_config_and_log(config, job_type = None):
     for opt,val in default["OPTIONS"].items():
         if opt not in config["OPTIONS"].keys():
             config["OPTIONS"][opt] = val
-    # Override command options for those specified
-    for comm in config["COMMANDS"][job_type].keys():
-        for opt,val in default["COMMANDS"][job_type][comm].items():
-            if config["COMMANDS"][job_type][comm] is not None:
-                if opt not in config["COMMANDS"][job_type][comm].keys():
-                    config["COMMANDS"][job_type][comm][opt] = val
-            else:
-                # If no options are set in the analysis configuration
-                # set it up now.
-                config["COMMANDS"][job_type][comm] = {}
-                config["COMMANDS"][job_type][comm][opt] = val
     general_log = setup_logger(config)
-    c_log = command_log(config)
+    c_log = command_log(config, job_type)
     return config, general_log, c_log
 
 def format_command(command_config):
     """
         Performs standard formatting of commands being run.
     """
-    opts, first_arg = "", ""
-    for k,v in command_config.items():
-        if k == "_flag":
-            opts += " %s " % v
-        elif k != "__command__":
-            opts += "%s %s " % (k,v)
-        else:
-            first_arg = command_config["__command__"]
-    return first_arg, opts
+    opts = ""
+    if command_config is not None:
+        for k,v in command_config.items():
+            # Use '__' for custom options
+            if k.startswith("__"):
+                pass
+            # Use '_' to designate flags.
+            elif k.startswith("_"):
+                opts += " %s " % v
+            else:
+                opts += "%s %s " % (k,v)
+        return opts
+    else:
+        return ""
 
 def file_exists(filename):
     if os.path.isfile(filename) and os.path.getsize(filename) > 0:
@@ -141,6 +168,9 @@ def remove_file(file):
 
 def command(command, log):
     """ Run a command on system and log """
+    program = command.split(" ")[0]
+    program_version = version(program)
+    log.add("\n# " + program_version )
     log.add(command.strip() + "\n")
     command = Popen(command, shell=True, stdout=PIPE)
     for line in command.stdout:
@@ -168,16 +198,18 @@ def which(program):
 def version(program):
     """ Attempts to return the version of an executable or None if it can't be found. """
     prog = which(program)
-    if program not in ["tabix"]:
+    if program not in ["tabix", "bwa", "rm", "cp", "ls"]:
         try:
             version = Popen([prog,"--version"], stdout=PIPE).communicate()[0]
             version = version.strip().split("\n")[0]
+            if version == None:
+                version = ""
             return "%-50s\t%s" % (prog, version)
         except:
-            return None
+            return ""
     else:
         # Hand special cases
-        pass
+        return "%-50s\t%s" % (prog, "")
 
 def common_prefix(strings):
     """ Find the longest string that is a prefix of all the strings.
@@ -235,7 +267,30 @@ def get_bam_RG(bam):
     RG = [x for x in out.split("\n") if x.startswith("@RG")]
     return RG
 
+def boolify(s):
+    """ http://stackoverflow.com/questions/7019283/automatically-type-cast-parameters-in-python """
+    if s == 'True':
+        return True
+    if s == 'False':
+        return False
+    raise ValueError("huh?")
+
+def set_type(s):
+    for fn in (boolify, int, float):
+        try:
+            return fn(s)
+        except ValueError:
+            pass
+    return s
+
+def rreplace(s, old, new, count):
+    """ 
+    Replaces last occurance of something
+    stackoverflow.com/questions/2556108/
+    """
+    return (s[::-1].replace(old[::-1], new[::-1], count))[::-1]
+
 # Define Constants
 script_dir = get_script_dir()
-
+available_snp_callers = ["bcftools", "freebayes"]
 
