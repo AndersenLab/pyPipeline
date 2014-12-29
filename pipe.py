@@ -120,10 +120,9 @@ if __name__ == '__main__':
         # Construct Sample Set
         ID_set = [] # Used to check uniqueness of IDs
         for row in csv.DictReader(sample_file, delimiter='\t', quoting=csv.QUOTE_NONE):
-            print row
             fq1, fq2 = row["FQ1"], row["FQ2"]
-            row["fq1"] = "{analysis_dir}/{OPTIONS.fastq_dir}/{fq1}".format(**locals())
-            row["fq2"] = "{analysis_dir}/{OPTIONS.fastq_dir}/{fq2}".format(**locals())
+            row["fq1"] = "{OPTIONS.fastq_dir}/{fq1}".format(**locals())
+            row["fq2"] = "{OPTIONS.fastq_dir}/{fq2}".format(**locals())
             # Construct Individual BAM Dict
             ID = row["ID"]
             SM = row["SM"]
