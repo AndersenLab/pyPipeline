@@ -10,13 +10,14 @@ pyPipeline
 
 - [X] Alignment with BWA
 - [X] Remove Optical Duplicates (Picard Tools)
-- [ ] Sbatch Job Dependencies
+- [X] Sbatch Job Dependencies
 - [ ] BAM Statistics Report
 - [ ] FASTQC Report
 - [ ] Duplicate Reads Report / Summarization
 
 ## Variant Calling
 
+- [ ] Construct files from fastq list.
 - [X] Joint Calling
 	- [X] Parallelization (by chromosome; then merge)
 	- [ ] Filters
@@ -64,6 +65,7 @@ pyPipeline
 - [ ] Beagle
 - [ ] Deduplication Reports (Picard)
 	- [X] Data handling
+	- [ ] Sort and make unique during analysis phase.
 	- [ ] Report Generation
 - [ ] Heterozygous Polarization Reports
 - [ ] Fastqc Reports

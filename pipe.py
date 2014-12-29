@@ -26,6 +26,28 @@ def check_rows(row):
     if not file_exists(row["fq1"]) or not file_exists(row["fq2"]):
         raise Exception("File Missing; Check: {fq1}, {fq2}".format(fq1=row["fq1"], fq2=row["fq2"]))
 
+def submit_job(command, dependencies = None, dep_type = "afterok"):
+    log.info(command)
+    if opts["--debug"] == False:
+        if dependencies is not None:
+            dependencies = ':'.join(dependencies)
+            depends_on = "--dependency={dep_type}:".format(**locals())
+            depends_on += dependencies
+            command = ' '.join(command.split(" ").insert(1, depends_on))
+        else:
+            depends_on = ""
+        jobid, err = Popen(command, stdout=PIPE, stderr=PIPE, shell=True).communicate()
+        jobid = jobid.strip().split(" ")[-1]
+        if jobid.isdigit() == False:
+            raise Exception("Error submitting %s" % jobid)
+            exit()
+        else:
+            dependency_list[SM].append(jobid)
+            return jobid
+    else:
+        os.system(command)
+        return None
+
 if __name__ == '__main__':
     opts = docopt(__doc__, version='pyPipeline')
     print opts
@@ -42,8 +64,7 @@ if __name__ == '__main__':
         run = "python"
         log_files = ""
     else:
-        run = "sbatch"
-        log_files = " --output=%j.txt --error=%j.err "
+        run = "sbatch --output=%j.txt --error=%j.err "
 
     #
     # Add Checks here for required options
@@ -141,6 +162,7 @@ if __name__ == '__main__':
                 raise Exception("No ID defined for %s" % row)
             if SM == None:
                 raise Exception("No sample defined for %s" % ID)
+
             RG = construct_RG_header(ID, row).replace("\\t","\t")
             sample_info = {"ID" : ID, "RG": RG, "row": row}
             sample_set[SM].append(sample_info)
@@ -152,7 +174,6 @@ if __name__ == '__main__':
             raise Exception("ID's are not Unique")
 
         dependency_list = {} # Used to keep jobs working in the proper order.
-        deletion_dependency_list = []
         for SM in sample_set.keys():
             dependency_list[SM] = []
             # Check the header of the merged bam to see if 
@@ -192,18 +213,9 @@ if __name__ == '__main__':
 
 
                     if not file_exists(single_bam) or re_align:
-                        align = "{run} {log_files} {script_dir}/align.py {config_file} \"{row}\"".format(**locals())
-                        log.info(align)
-                        if opts["--debug"] == False:
-                            jobid, err = Popen(align, stdout=PIPE, stderr=PIPE, shell=True).communicate()
-                            jobid = jobid.strip().split(" ")[-1]
-                            deletion_dependency_list.append(jobid)
-                            if jobid.isdigit() == False:
-                                raise Exception("Error submitting %s" % jobid)
-                            else:
-                                dependency_list[SM].append(jobid)
-                        else:
-                            os.system(align)
+                        align = "{run} {script_dir}/align.py {config_file} \"{row}\"".format(**locals())
+                        jobid = submit_job(align)
+                        dependency_list[SM].append(jobid)
                     else:
                         log.info("%-50s already aligned individually, skipping" % single_bam)
         #
@@ -217,32 +229,13 @@ if __name__ == '__main__':
             if not file_exists(completed_merged_bam) or not file_exists(completed_merged_bam + ".bai"):
                 bam_set = [x["ID"] + ".bam" for x in sample_set[SM]]
                 bams_to_merge = (SM, bam_set)
-                print bams_to_merge
 
-                # Set up dependencies
-                if len(dependency_list[SM]) > 0:
-                    print("Submitted alignment of {SM}; Jobs: {ls}".format(SM=SM,ls=", ".join(dependency_list[SM])))
-                    depends_on = "--dependency=afterok:" + ":".join(dependency_list[SM])
-                else:
-                    depends_on = ""
-
-                merge_bams = "{run} {depends_on} {script_dir}/merge_bams.py {config_file} \"{bams_to_merge}\"".format(**locals())
-                log.info(merge_bams)
+                merge_bams = "{run} {script_dir}/merge_bams.py {config_file} \"{bams_to_merge}\"".format(**locals())
+                jobid = submit_job(merge_bams, dependency_list[SM], "after")
                 if opts["--debug"] == False:
-                    jobid, err = Popen(merge_bams, stdout=PIPE, stderr=PIPE, shell=True).communicate()
-                    jobid = jobid.strip().split(" ")[-1]
-                    deletion_dependency_list.append(jobid)
-                    if jobid.isdigit() == False:
-                        raise Exception("Error submitting %s" % jobid)
-                    else:
-                        print("Submitted merger of {SM} bams; Job: {jobid}".format(**locals()))
-                else:
-                    os.system(merge_bams)
-
-
+                    print("Submitted merge:{SM}; depends on: {ls}".format(SM=SM, ls=','.join(dependency_list[SM])))
             else:
                 log.info("%-50s already exists with all individual bams, skipping" % completed_merged_bam)
-
     #=============#
     # SNP Calling #
     #=============#
