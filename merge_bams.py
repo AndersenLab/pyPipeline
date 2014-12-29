@@ -50,11 +50,12 @@ command("samtools index {bam_dir}/{SM}.bam".format(**locals()), c_log)
 #========================#
 # Remove temp files here #
 #========================#
-if OPTIONS.alignment_options.remove_temp == True:
+
+if COMMANDS.align.alignment_options.remove_temp == True:
     for bam in SM_Bams:
-        command("rm {bam_dir}/{bam}.bam".format(**locals()), c_log)
-    for bam in reduce(SM_Bams.values(),operator.add):
         command("rm {bam_dir}/{bam}".format(**locals()), c_log)
+        dup_report = bam.replace(".bam",".duplicate_report.txt")
+        command("rm {bam_dir}/{dup_report}".format(**locals()), c_log)
 
 # Test for problems here...
 sys.exit(0)
