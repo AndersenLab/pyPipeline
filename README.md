@@ -34,6 +34,8 @@ pyPipeline
 	- [X] Generate joint sites
 	- [X] Recall with joint variant set
 - [ ] Sbatch Job Dependencies
+	- [X] Joint Calling
+	- [ ] Individual Calling
 - [ ] Add function for 'downgrading' VCF for viewing in IGV (temporary)
 
 ### Callers 

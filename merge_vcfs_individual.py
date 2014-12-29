@@ -1,4 +1,4 @@
-#/usr/bin/python
+#!/usr/bin/python
 import sys, os
 from ast import literal_eval
 from utils import *
