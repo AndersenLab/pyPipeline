@@ -20,6 +20,7 @@ import glob
 from utils import *
 from utils.genomes import *
 import csv
+import operator
 
 def check_rows(row):
     if not file_exists(row["fq1"]) or not file_exists(row["fq2"]):
@@ -145,8 +146,13 @@ if __name__ == '__main__':
             # Check that row's exist before proceeding.
             check_rows(row)
 
-        for SM in sample_set.keys():
+        if len(ID_set) > len(set(ID_set)):
+            raise Exception("ID's are not Unique")
 
+        dependency_list = {} # Used to keep jobs working in the proper order.
+        deletion_dependency_list = []
+        for SM in sample_set.keys():
+            dependency_list[SM] = []
             # Check the header of the merged bam to see if 
             # current file already exists within
             completed_merged_bam = "{bam_dir}/{SM}.bam".format(**locals())
@@ -183,10 +189,17 @@ if __name__ == '__main__':
                             re_align = True
 
 
-                    if not file_exists(single_bam) or re_align :
-                        align = "{run} {script_dir}/align.py {config_file} \"{row}\"".format(**locals())
+                    if not file_exists(single_bam) or re_align:
+                        align = "{run} --output=%j.txt --error=%j.err {script_dir}/align.py {config_file} \"{row}\"".format(**locals())
                         log.info(align)
-                        os.system(align)
+                        jobid, err = Popen(align, stdout=PIPE, stderr=PIPE, shell=True).communicate()
+                        if opts["--debug"] == False:
+                            jobid = jobid.strip().split(" ")[-1]
+                            deletion_dependency_list.append(jobid)
+                            if jobid.isdigit() == False:
+                                raise Exception("Error submitting %s" % jobid)
+                            else:
+                                dependency_list[SM].append(jobid)
                     else:
                         log.info("%-50s already aligned individually, skipping" % single_bam)
         #
@@ -200,19 +213,28 @@ if __name__ == '__main__':
             if not file_exists(completed_merged_bam) or not file_exists(completed_merged_bam + ".bai"):
                 bam_set = [x["ID"] + ".bam" for x in sample_set[SM]]
                 bams_to_merge = (SM, bam_set)
-                merge_bams = "{run} {script_dir}/merge_bams.py {config_file} \"{bams_to_merge}\"".format(**locals())
+
+                # Set up dependencies
+                if len(dependency_list[SM]) > 0:
+                    print("Submitted alignment of {SM}; Jobs: {ls}".format(SM=SM,ls=", ".join(dependency_list[SM])))
+                    depends_on = "--dependency=afterok:" + ":".join(dependency_list[SM])
+                else:
+                    depends_on = ""
+
+                merge_bams = "{run} {depends_on} {script_dir}/merge_bams.py {config_file} \"{bams_to_merge}\"".format(**locals())
                 log.info(merge_bams)
-                os.system(merge_bams)
+                jobid, err = Popen(merge_bams, stdout=PIPE, stderr=PIPE, shell=True).communicate()
+                jobid = jobid.strip().split(" ")[-1]
+                if opts["--debug"] == False:
+                    jobid = jobid.strip().split(" ")[-1]
+                    deletion_dependency_list.append(jobid)
+                    if jobid.isdigit() == False:
+                        raise Exception("Error submitting %s" % jobid)
+                    else:
+                        print("Submitted merger of {SM} bams; Job: {jobid}".format(**locals()))
+
             else:
                 log.info("%-50s already exists with all individual bams, skipping" % completed_merged_bam)
-        
-        #
-        # Cleanup Old Files
-        # 
-        bam_dir_files = glob.glob("{bam_dir}/*".format(**locals()))
-        for bam_file in bam_dir_files:
-            if bam_file not in bam_dir_white_list:
-                remove_file(bam_file)
 
     #=============#
     # SNP Calling #

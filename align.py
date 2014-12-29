@@ -1,4 +1,4 @@
-#/usr/bin/python
+#!/usr/bin/python
 import sys, os
 from ast import literal_eval
 from utils import *
@@ -29,7 +29,7 @@ config, log, c_log = load_config_and_log(sys.argv[1], "align")
 OPTIONS = config.OPTIONS
 COMMANDS = config.COMMANDS
 align = COMMANDS.align # Pulls out alignment types.
-reference = glob.glob("{script_dir}/genomes/{OPTIONS.reference}/*gz".format(**locals()))[0]
+reference = glob.glob("{script_dir}/genomes/{OPTIONS.reference}/*fa.gz".format(**locals()))[0]
 
 #=========================#
 # Setup Read Group Header #
@@ -131,3 +131,6 @@ else:
     # If duplicates are not being marked, move files
     move_file = """mv {OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/{ID}.sorted.bam {OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/{ID}.bam""".format(**locals())
     command(move_file, c_log)
+
+# Test for problems here...
+sys.exit(0)

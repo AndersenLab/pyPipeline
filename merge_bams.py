@@ -1,10 +1,11 @@
-#/usr/bin/python
+#!/usr/bin/python
 import sys, os
 from ast import literal_eval
 from utils import *
 from commands import *
 import tempfile
 import glob
+import operator
 
 # ======= #
 # Command #
@@ -46,9 +47,14 @@ else:
 
 command("samtools index {bam_dir}/{SM}.bam".format(**locals()), c_log)
 
-#==================================#
-# Remove individually aligned Bams #
-#==================================#
+#========================#
+# Remove temp files here #
+#========================#
 if OPTIONS.alignment_options.remove_temp == True:
     for bam in SM_Bams:
         command("rm {bam_dir}/{bam}.bam".format(**locals()), c_log)
+    for bam in reduce(SM_Bams.values(),operator.add):
+        command("rm {bam_dir}/{bam}".format(**locals()), c_log)
+
+# Test for problems here...
+sys.exit(0)
