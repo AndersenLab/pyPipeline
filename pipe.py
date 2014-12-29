@@ -67,7 +67,7 @@ if __name__ == '__main__':
     """
 
     if opts["samplefile"] == True: 
-        header = "fq1\tfq2\tID\tLB\tSM\tPL\n"
+        header = "FQ1\tFQ2\tID\tLB\tSM\tPL\n"
         sample_file = open(opts["<filename/dir>"] + ".txt",'w')
         sample_file.write(header)
         if is_dir(analysis_dir + "/" + opts["<filename/dir>"]):
@@ -84,7 +84,7 @@ if __name__ == '__main__':
     # Setup #
     #=======#
 
-    analysis_types = ["align", "merge", "snps", "indels", "test"]
+    analysis_types = ["trim", "align", "merge", "snps", "indels", "test"]
     analysis_type = [x for x in opts if opts[x] == True and x in analysis_types][0]
     # Load Configuration
     config, log, c_log = load_config_and_log(config_file, analysis_type)
@@ -100,19 +100,28 @@ if __name__ == '__main__':
     log.info("#=== Beginning Analysis ===#")
     log.info("Running " + opts["<config>"])
 
+    #======#
+    # Trim #
+    #======#
+
+    if analysis_type == "trim":
+        # Trim Nextera Adapters
+        pass
+
     #===========#
     # Alignment #
     #===========#
 
-    if analysis_type == "align":
-        sample_set = open(config["OPTIONS"]["sample_file"], 'rU')
+    elif analysis_type == "align":
+        sample_file = open(config.OPTIONS.sample_file, 'rU')
         log.info("Performing Alignment")
         sample_set = {} # Generate a list of samples.
         bam_dir_white_list = [] # List of bams to keep following alignment; removes extras
         # Construct Sample Set
         ID_set = [] # Used to check uniqueness of IDs
-        for row in csv.DictReader(sample_set, delimiter='\t', quoting=csv.QUOTE_NONE):
-            fq1, fq2 = row["fq1"], row["fq2"]
+        for row in csv.DictReader(sample_file, delimiter='\t', quoting=csv.QUOTE_NONE):
+            print row
+            fq1, fq2 = row["FQ1"], row["FQ2"]
             row["fq1"] = "{analysis_dir}/{OPTIONS.fastq_dir}/{fq1}".format(**locals())
             row["fq2"] = "{analysis_dir}/{OPTIONS.fastq_dir}/{fq2}".format(**locals())
             # Construct Individual BAM Dict
@@ -138,6 +147,7 @@ if __name__ == '__main__':
             check_rows(row)
 
         for SM in sample_set.keys():
+
             # Check the header of the merged bam to see if 
             # current file already exists within
             completed_merged_bam = "{bam_dir}/{SM}.bam".format(**locals())

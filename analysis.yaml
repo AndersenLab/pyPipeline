@@ -9,7 +9,7 @@ OPTIONS:
     bam_dir: "bam2"
     vcf_dir: "vcf"
     union_variants: "union" # suffix used to designate union file to use with caller.
-    sample_file: "FASTQ.txt"
+    sample_file: "test_set.txt"
     chrom_chunk_kb: 100000
 
 #==============#
