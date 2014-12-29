@@ -59,13 +59,6 @@ if __name__ == '__main__':
     config_file = opts["<config>"]
     analysis_dir = os.getcwd()
 
-    # Running locally or on a cluster
-    if opts["--debug"] == True:
-        run = "python"
-        log_files = ""
-    else:
-        run = "sbatch --output=%j.txt --error=%j.err "
-
     #
     # Add Checks here for required options
     #
@@ -114,6 +107,15 @@ if __name__ == '__main__':
     config, log, c_log = load_config_and_log(config_file, analysis_type)
     OPTIONS = config.OPTIONS
     COMMANDS = config.COMMANDS
+
+    # Running locally or on a cluster
+    log_dir = "{OPTIONS.analysis_dir}/log".format(**locals())
+    makedir(log_dir)
+    if opts["--debug"] == True:
+        run = "python"
+        log_files = ""
+    else:
+        run = "sbatch --output={log_dir}/%j.txt --error={log_dir}/%j.err "
 
     bam_dir = "{OPTIONS.analysis_dir}/{OPTIONS.bam_dir}".format(**locals())
     vcf_dir = "{OPTIONS.analysis_dir}/{OPTIONS.vcf_dir}".format(**locals())
