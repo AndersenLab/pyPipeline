@@ -2,21 +2,23 @@
 import sys, os
 from ast import literal_eval
 from utils import *
+from utils.seq_utils import *
 import tempfile
 import glob
+import csv
 
 #=========#
 # Command #
 #=========#
 
-bwa = """bwa mem -R '{RG_header}' {bwa_options} {reference} {OPTIONS.fastq_dir}/{FQ1} {OPTIONS.fastq_dir}/{FQ2} | samtools view -bhu - > {OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/{ID}.unsorted.bam
-         samtools sort -O bam -T {tmpname} {OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/{ID}.unsorted.bam > {OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/{ID}.sorted.bam"""
+bwa = """bwa mem -R '{RG_header}' {bwa_options} {reference} {OPTIONS.fastq_dir}/{FQ1} {OPTIONS.fastq_dir}/{FQ2} | samtools view -bhu - > {bam_dir}/{ID}.unsorted.bam
+         samtools sort -O bam -T {tmpname} {bam_dir}/{ID}.unsorted.bam > {bam_dir}/{ID}.sorted.bam"""
 
 mark_dups = """
             java -jar {script_dir}/tools/picard.jar MarkDuplicates \
-            I={OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/{ID}.sorted.bam \
-            O={OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/{ID}.bam \
-            M={OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/{ID}.duplicate_report.txt \
+            I={bam_dir}/{ID}.sorted.bam \
+            O={bam_dir}/{ID}.bam \
+            M={bam_dir}/{ID}.duplicate_report.txt \
             VALIDATION_STRINGENCY=SILENT REMOVE_DUPLICATES=true
             """
 
@@ -30,13 +32,71 @@ OPTIONS = config.OPTIONS
 COMMANDS = config.COMMANDS
 align = COMMANDS.align # Pulls out alignment types.
 reference = glob.glob("{script_dir}/genomes/{OPTIONS.reference}/*fa.gz".format(**locals()))[0]
+bam_dir = "{OPTIONS.analysis_dir}/{OPTIONS.bam_dir}".format(**locals())
+
+#===========================#
+# Save Fastq Info and Stats #
+#===========================#
+
+fieldnames = ['cksum',
+              'filename',
+              'ID',
+              'LB',
+              'SM',
+              'PL',
+              'instrument',
+              'run_id',
+              'flowcell_id',
+              'flowcell_lane',
+              'flowcell_tile',
+              'pair',
+              'index',
+              'Number_of_Reads',
+              'Unique_Reads', 
+              'Frequency_of_Unique_Reads',
+              'Most_Abundant_Sequence',
+              'Number_of_Times_Most_Abundant_Sequence_Occurs',
+              'Frequency_of_Most_Abundant_Sequence']
+
+fastq_info_file_loc = "{OPTIONS.analysis_dir}/statistics/FASTQ_INFO.txt".format(**locals())
+
+# Check to see if fastq info already stored.
+fq1_cksum = cksum(opts["fq1"])
+fq2_cksum = cksum(opts["fq2"])
+cksum_set = []
+if file_exists(fastq_info_file_loc):
+    with open(fastq_info_file_loc,'r') as r:
+        for row in r:
+            cksum_set.append(row.split("\t")[0])
+
+# Process fastq info
+with open(fastq_info_file_loc,'a') as f:
+    fq_info = csv.DictWriter(f, delimiter='\t', fieldnames=fieldnames)
+    if not file_exists(fastq_info_file_loc):
+        fq_info.writerow(dict((x,x) for x in fieldnames))
+    
+    if fq1_cksum not in cksum_set:
+        fq_data = dict(extract_fastq_info(opts["fq1"]).items() + get_fastq_stats(opts["fq1"]).items())
+        fq_data["filename"] = opts["fq1"]
+        fq_data["ID"], fq_data["LB"] = opts["ID"], opts["LB"] 
+        fq_data["SM"], fq_data["PL"] = opts["SM"], opts["PL"] 
+        fq_data["cksum"] = fq1_cksum
+        fq_info.writerow(fq_data)
+
+    if fq2_cksum not in cksum_set:
+        fq_data = dict(extract_fastq_info(opts["fq2"]).items() + get_fastq_stats(opts["fq2"]).items())
+        fq_data["filename"] = opts["fq2"]
+        fq_data["ID"], fq_data["LB"] = opts["ID"], opts["LB"] 
+        fq_data["SM"], fq_data["PL"] = opts["SM"], opts["PL"] 
+        fq_data["cksum"] = fq2_cksum
+        fq_info.writerow(fq_data)
 
 #=========================#
 # Setup Read Group Header #
 #=========================#
 
 # Set up Read Group String for alignment (with bwa)
-fqs = [os.path.split(opts["FQ1"])[1], os.path.split(opts["FQ2"])[1]]
+
 ID = opts["ID"]
 RG_header = construct_RG_header(ID, opts)
 
@@ -54,8 +114,8 @@ if "bwa" in align:
     makedir(OPTIONS["analysis_dir"])
     makedir(OPTIONS["analysis_dir"] + "/" + OPTIONS.bam_dir)
     makedir(OPTIONS["analysis_dir"] + "/statistics")
-    completed_bam = "{OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/{ID}.bam".format(**locals())
-    unsorted_bam = "{OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/{ID}.unsorted.bam".format(**locals())
+    completed_bam = "{bam_dir}/{ID}.bam".format(**locals())
+    unsorted_bam = "{bam_dir}/{ID}.unsorted.bam".format(**locals())
     if not file_exists(completed_bam) and not file_exists(unsorted_bam):
         comm = bwa.format(**locals())
         command(comm, c_log)
@@ -87,7 +147,7 @@ def picard_dup_parser(dup_file, bam):
 if "picard" in align:
     if "markduplicates" in align.picard:
         if align.picard.markduplicates == True:
-            dup_report = "{OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/{ID}.duplicate_report.txt".format(**locals())
+            dup_report = "{bam_dir}/{ID}.duplicate_report.txt".format(**locals())
             if not file_exists(dup_report) or not file_exists(completed_bam):
                 comm = mark_dups.format(**locals())
                 log.info("Removing Duplicates: %s.bam" % ID)
@@ -95,7 +155,7 @@ if "picard" in align:
                 command(comm, c_log)
                 # Remove Sort tempfile
                 if align.alignment_options.remove_temp == True:
-                    file_to_delete = "rm {OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/{ID}.sorted.bam".format(**locals())
+                    file_to_delete = "rm {bam_dir}/{ID}.sorted.bam".format(**locals())
                     command(file_to_delete, c_log)
                 # Process Duplicate Report
                 stat_file = "{OPTIONS.analysis_dir}/statistics/PICARD_Aggregate_{OPTIONS.bam_dir}.txt".format(**locals())
@@ -123,13 +183,11 @@ if "picard" in align:
                     picard_histogram_file.close()
                 with open(histogram_file, 'a+') as hist:
                     hist.write(histogram_values)
-
-
             else:
                 log.info("SKIPPING: " + dup_report + " exists; Skipping.")
 else:
     # If duplicates are not being marked, move files
-    move_file = """mv {OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/{ID}.sorted.bam {OPTIONS.analysis_dir}/{OPTIONS.bam_dir}/{ID}.bam""".format(**locals())
+    move_file = """mv {bam_dir}/{ID}.sorted.bam {bam_dir}/{ID}.bam""".format(**locals())
     command(move_file, c_log)
 
 # Test for problems here...

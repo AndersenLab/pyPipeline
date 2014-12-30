@@ -11,13 +11,11 @@ pyPipeline
 - [X] Alignment with BWA
 - [X] Remove Optical Duplicates (Picard Tools)
 - [X] Sbatch Job Dependencies
-- [ ] BAM Statistics Report
-- [ ] FASTQC Report
 - [ ] Duplicate Reads Report / Summarization
 
 ## Variant Calling
 
-- [ ] Construct files from fastq list.
+- [X] Construct files from fastq list.
 - [X] Joint Calling
 	- [X] Parallelization (by chromosome; then merge)
 	- [ ] Filters
@@ -33,9 +31,9 @@ pyPipeline
 	- [X] Heterozygous Polarization Filter
 	- [X] Generate joint sites
 	- [X] Recall with joint variant set
-- [ ] Sbatch Job Dependencies
+- [X] Sbatch Job Dependencies
 	- [X] Joint Calling
-	- [ ] Individual Calling
+	- [X] Individual Calling
 - [ ] Add function for 'downgrading' VCF for viewing in IGV (temporary)
 
 ### Callers 
@@ -49,31 +47,38 @@ pyPipeline
 - [X] Soft-Filtering
 - [ ] Hard Filtering
 
-### Variant Comparison
-
-- [ ] Depth of Coverage and Mitochondrial Statistics
-- [ ] Concordance Analysis and Report
-- [ ] Comparing different callers (integrates vcf-toolbox)
-
 ### Validation
 
 - [ ] Integrate Swan and Wick variant calls.
 - [ ] Integrate original MMP calls.
 - [ ] Integrate Radseq calls
+- [ ] Examine TsTv Ratios
 - [ ] Develop list of 196 sites to validate; random sample from CB4856.
 
-### Analysis
+### Statistics
 
-- [ ] Beagle
-- [ ] Deduplication Reports (Picard)
-	- [X] Data handling
-	- [ ] Sort and make unique during analysis phase.
-	- [ ] Report Generation
-- [ ] Heterozygous Polarization Reports
-- [ ] Fastqc Reports
-	- [ ] FQ
-	- [ ] BAM (individual+merged)
-- [ ] Comparative Reports
+- [ ] Remove stats files if sample file changed (use hash)
+- [X] FASTQ - statistics/
+	- [X] Check if stats already taken (based on chksum)
+	- [ ] Add date/time
+- [ ] BAM - statistics/
+	- [ ] Check if stats already taken
+	- [ ] Add date/time
+- [ ] VCF - statstics/
+	- [ ] Check if stats already taken
+	- [ ] Add date/time
+
+### Reports
+
+- [ ] Fastq report
+- [ ] Deduplication Report
+- [ ] Het polarization report
+- [ ] BAM report
+- [ ] VCF report
+- [ ] Variant Comparison
+	- [ ] Depth of Coverage and Mitochondrial Statistics
+	- [ ] Concordance Analysis and Report
+	- [ ] Comparison of different callers
 
 ## Other
 

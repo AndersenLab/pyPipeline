@@ -90,8 +90,8 @@ if __name__ == '__main__':
 
     if opts["samplefile"] == True: 
         header = "FQ1\tFQ2\tID\tLB\tSM\tPL\n"
-        sample_file = open(opts["<filename/dir>"] + ".txt",'w')
-        sample_file.write(header)
+        new_sample_file = open(opts["<filename/dir>"] + ".txt",'w')
+        new_sample_file.write(header)
         if is_dir(analysis_dir + "/" + opts["<filename/dir>"]):
             # Construct a sample file using the directory info.
             sample_set = glob.glob(opts["<filename/dir>"] + "/*.row.gz")
@@ -99,7 +99,7 @@ if __name__ == '__main__':
                 sorted([os.path.split(x)[1] for x in sample_set if x.find("2.row.gz") != -1]))
             for pair in fastq_pairs:
                 ID = get_row_ID(pair)
-                sample_file.write("\t".join(pair) + "\t" + ID + "\n")
+                new_sample_file.write("\t".join(pair) + "\t" + ID + "\n")
         exit()
 
     #=======#
@@ -132,6 +132,7 @@ if __name__ == '__main__':
     log.info("Running " + opts["<config>"])
 
     reference = glob.glob("{script_dir}/genomes/{OPTIONS.reference}/*fa.gz".format(**locals()))[0]
+    sample_file = open(config.OPTIONS.sample_file, 'rU')
 
     #======#
     # Trim #
@@ -146,7 +147,6 @@ if __name__ == '__main__':
     #===========#
 
     elif analysis_type == "align":
-        sample_file = open(config.OPTIONS.sample_file, 'rU')
         log.info("Performing Alignment")
         sample_set = {} # Generate a list of samples.
         bam_dir_white_list = [] # List of bams to keep following alignment; removes extras
@@ -257,12 +257,11 @@ if __name__ == '__main__':
         #
 
         # Get list of bams
-        sample_set = open(config["OPTIONS"]["sample_file"], 'rU')
         log.info("Performing Variant Calling")
 
         # Construct Sample Set
         bam_set = []
-        for row in csv.DictReader(sample_set, delimiter='\t', quoting=csv.QUOTE_NONE):
+        for row in csv.DictReader(sample_file, delimiter='\t', quoting=csv.QUOTE_NONE):
             SM = row["SM"]
             bam_set.append(SM)
             bam_file = "{bam_dir}/{SM}.bam".format(**locals())
