@@ -18,9 +18,9 @@ pyPipeline
 - [X] Construct files from fastq list.
 - [X] Joint Calling
 	- [X] Parallelization (by chromosome; then merge)
-	- [ ] Filters
+	- [X] Filters
 		- [X] Soft
-		- [ ] Hard
+		- [X] Hard
 	- [X] Heterozygous Polarization Filter
 - [X] Individual Calling
 	- [X] Parallelization (Across Regions)
@@ -41,11 +41,6 @@ pyPipeline
 - [X] Samtools/bcftools
 - [ ] Freebayes
 - [ ] Platypus
-
-### Filters
-
-- [X] Soft-Filtering
-- [ ] Hard Filtering
 
 ### Validation
 
@@ -68,13 +63,20 @@ pyPipeline
 	- [ ] Check if stats already taken
 	- [ ] Add date/time
 
+### Variant Prediction
+
+- [ ] SNPeff
+- [ ] Annovar
+
 ### Reports
 
 - [ ] Fastq report
 - [ ] Deduplication Report
-- [ ] Het polarization report
 - [ ] BAM report
 - [ ] VCF report
+	- [ ] Het polarization
+	- [ ] TsTV ratios
+	- [ ] Morbid Map
 - [ ] Variant Comparison
 	- [ ] Depth of Coverage and Mitochondrial Statistics
 	- [ ] Concordance Analysis and Report
@@ -82,6 +84,7 @@ pyPipeline
 
 ## Other
 
+- [ ] Convert stats to EAV system.
 - [ ] Email Notifications
 - [ ] Copy analysis.yaml to analysis_dir
 - [ ] Add checks for required options.

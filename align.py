@@ -63,11 +63,7 @@ fastq_info_file_loc = "{OPTIONS.analysis_dir}/statistics/FASTQ_INFO.txt".format(
 # Check to see if fastq info already stored.
 fq1_cksum = cksum(opts["fq1"])
 fq2_cksum = cksum(opts["fq2"])
-cksum_set = []
-if file_exists(fastq_info_file_loc):
-    with open(fastq_info_file_loc,'r') as r:
-        for row in r:
-            cksum_set.append(row.split("\t")[0])
+cksum_set = get_column(fastq_info_file_loc,0)
 
 # Process fastq info
 with open(fastq_info_file_loc,'a') as f:
@@ -190,5 +186,14 @@ else:
     move_file = """mv {bam_dir}/{ID}.sorted.bam {bam_dir}/{ID}.bam""".format(**locals())
     command(move_file, c_log)
 
-# Test for problems here...
+#=============================#
+# Save BAM Stats (Individual) #
+#=============================#
+bam_individual = "{bam_dir}/{ID}.bam".format(**locals())
+statfile = "{OPTIONS.analysis_dir}/statistics/BAM_{OPTIONS.bam_dir}.txt".format(**locals())
+save_bam_stats( bam_individual , "Individual", RG_header, statfile)
+
+
+
+# Test for problems here..
 sys.exit(0)
