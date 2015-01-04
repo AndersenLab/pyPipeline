@@ -187,6 +187,8 @@ if __name__ == '__main__':
                     raise Exception("No sample defined for %s" % ID)
                 if fq1 == fq2:
                     raise Exception("Both Fastq's share same name: %s %s" % (fq1, fq2))
+                if ID == SM:
+                    raise Exception("ID cannot be equal to SM")
 
                 RG = construct_RG_header(ID, fq).replace("\\t","\t")
                 sample_info = {"ID" : ID, "RG": RG, "fq": fq}
@@ -241,9 +243,9 @@ if __name__ == '__main__':
                     if not file_exists(single_bam) or re_align:
 
                         if LOCAL == False:
-                            run += " --output={log_dir}/align.{ID}.%j.txt --error={log_dir}/align.{ID}.%j.err ".format(**locals())
+                            output_dirs = " --output={log_dir}/align.{ID}.%j.txt --error={log_dir}/align.{ID}.%j.err ".format(**locals())
 
-                        align = "{run} {script_dir}/align.py {config_file} \"{fq}\"".format(**locals())
+                        align = "{run} {output_dirs} {script_dir}/align.py {config_file} \"{fq}\"".format(**locals())
                         jobid = submit_job(align)
                         dependency_list[SM].append(jobid)
                     else:

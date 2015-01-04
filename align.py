@@ -19,7 +19,7 @@ import csv
 truncate_fq = """{stream_fq} {fq_loc} | head -n {OPTIONS.debug_fq_number_of_sequences} | gzip > {OPTIONS.fastq_dir}/DEBUG_FQ/{fq_filename}"""
 
 bwa = """bwa mem -t {OPTIONS.cores} -R '{RG_header}' {bwa_options} {reference} {OPTIONS.fastq_dir}/{FQ1} {OPTIONS.fastq_dir}/{FQ2} | samtools view -@ {OPTIONS.cores} -bhu - > {bam_dir}/{ID}.unsorted.bam
-         samtools -@ {OPTIONS.cores} sort -O bam -T {bam_dir}/{tmpname} {bam_dir}/{ID}.unsorted.bam > {bam_dir}/{ID}.sorted.bam"""
+         samtools sort -@ {OPTIONS.cores} -O bam -T {bam_dir}/{tmpname} {bam_dir}/{ID}.unsorted.bam > {bam_dir}/{ID}.sorted.bam"""
 
 mark_dups = """
             java -jar {script_dir}/tools/picard.jar MarkDuplicates \
