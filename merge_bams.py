@@ -1,4 +1,9 @@
 #!/usr/bin/python
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=4
+#SBATCH --nodes=1
+#SBATCH --mem=8192
 import sys, os
 from ast import literal_eval
 from utils import *
@@ -42,17 +47,17 @@ if len(SM_Bams) > 1:
     SM_Bam_set = " ".join([bam_dir + "/" + x for x in SM_Bams])
     merge_bams = """samtools merge -f {merge_options} {bam_dir}/{merged_bam_name} {SM_Bam_set}""".format(**locals())
     command(merge_bams, c_log)
+    # Index
+    command("samtools index {bam_dir}/{SM}.bam".format(**locals()), c_log)
 else:
     # Move single_sequence bam to merged name.
     ID = SM_Bams[0]
-    move_file = """cp {bam_dir}/{ID} {bam_dir}/{SM}.bam""".format(**locals())
+    move_file = """mv {bam_dir}/{ID} {bam_dir}/{SM}.bam;
+                   mv {bam_dir}/{ID}.bai {bam_dir}/{SM}.bam.bai""".format(**locals())
     command(move_file, c_log)
 
-#================#
-# Samtools Index #
-#================#
 
-command("samtools index {bam_dir}/{SM}.bam".format(**locals()), c_log)
+
 
 #========================#
 # Remove temp files here #
