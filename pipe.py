@@ -120,6 +120,11 @@ if __name__ == '__main__':
     makedir(log_dir)
     makedir(stat_dir)
 
+    if OPTIONS.debug == True:
+        print OPTIONS.fastq_dir + "/DEBUG_FQ"
+        print OPTIONS
+        makedir(OPTIONS.fastq_dir + "/DEBUG_FQ")
+
     if LOCAL == True:
         run = "python"
         log_files = ""
@@ -142,8 +147,6 @@ if __name__ == '__main__':
     # Debug (testing) mode #
     #======================#
     if OPTIONS.debug == True:
-        debug_fq_dir = "{OPTIONS.fastq_dir}/DEBUG_FQ".format(**locals())
-        makedir(debug_fq_dir)
         bam_dir = "{OPTIONS.analysis_dir}/debug".format(**locals())
         eav_file = "{OPTIONS.analysis_dir}/{OPTIONS.stat_dir}/DEBUG_eav.txt".format(**locals())
 
@@ -165,14 +168,14 @@ if __name__ == '__main__':
         bam_dir_white_list = [] # List of bams to keep following alignment; removes extras
         # Construct Sample Set
         ID_set = [] # Used to check uniqueness of IDs
-        for fq in csv.DictReader(sample_file, delimiter='\t', quoting=csv.QUOTE_NONE):
+        for row in csv.DictReader(sample_file, delimiter='\t', quoting=csv.QUOTE_NONE):
             if fq["RUN"] != "NO":
-                fq1, fq2 = fq["FQ1"], fq["FQ2"]
-                fq["fq1"] = "{OPTIONS.fastq_dir}/{fq1}".format(**locals())
-                fq["fq2"] = "{OPTIONS.fastq_dir}/{fq2}".format(**locals())
-                # Construct Individual BAM Dict
-                ID = fq["ID"]
-                SM = fq["SM"]
+            fq1, fq2 = row["FQ1"], row["FQ2"]
+            row["fq1"] = "{OPTIONS.fastq_dir}/{fq1}".format(**locals())
+            row["fq2"] = "{OPTIONS.fastq_dir}/{fq2}".format(**locals())
+            # Construct Individual BAM Dict
+            ID = row["ID"]
+            SM = row["SM"]
 
                 # Sanity Checks
                 if ID in ID_set:
@@ -190,13 +193,13 @@ if __name__ == '__main__':
                 if ID == SM:
                     raise Exception("ID cannot be equal to SM")
 
-                RG = construct_RG_header(ID, fq).replace("\\t","\t")
-                sample_info = {"ID" : ID, "RG": RG, "fq": fq}
-                sample_set[SM].append(sample_info)
+            RG = construct_RG_header(ID, row).replace("\\t","\t")
+            sample_info = {"ID" : ID, "RG": RG, "row": row}
+            sample_set[SM].append(sample_info)
 
-                # Check that fq's exist before proceeding.
-                if OPTIONS.debug == False:
-                    check_fqs(fq)
+            # Check that row's exist before proceeding.
+            if OPTIONS.debug == False:
+                check_rows(row)
 
         if len(ID_set) > len(set(ID_set)):
             raise Exception("ID's are not Unique")
@@ -265,7 +268,6 @@ if __name__ == '__main__':
 
                 merge_bams = "{run} {script_dir}/merge_bams.py {config_file} \"{bams_to_merge}\"".format(**locals())
                 jobid = submit_job(merge_bams, dependency_list[SM], "afterok")
-                print jobid
                 if LOCAL == False:
                     print("Submitted merge:{SM}; depends on: {ls}".format(SM=SM, ls=','.join(dependency_list[SM])))
             else:
@@ -284,13 +286,12 @@ if __name__ == '__main__':
 
         # Construct Sample Set
         bam_set = []
-        for fq in csv.DictReader(sample_file, delimiter='\t', quoting=csv.QUOTE_NONE):
-            if fq["RUN"] != "NO":
-                SM = fq["SM"]
-                bam_set.append(SM)
-                bam_file = "{bam_dir}/{SM}.bam".format(**locals())
-                if (not file_exists(bam_file) or file_exists(bam_file + ".csi")) and OPTIONS.debug == False:
-                    raise Exception("Bam File or index does not exist: %s" % bam_file)
+        for row in csv.DictReader(sample_file, delimiter='\t', quoting=csv.QUOTE_NONE):
+            SM = row["SM"]
+            bam_set.append(SM)
+            bam_file = "{bam_dir}/{SM}.bam".format(**locals())
+            if (not file_exists(bam_file) or file_exists(bam_file + ".csi")) and OPTIONS.debug == False:
+                raise Exception("Bam File or index does not exist: %s" % bam_file)
         
         bam_set = set(bam_set)
         # Has vcf been called for given snp caller?

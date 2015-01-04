@@ -90,4 +90,5 @@ pyPipeline
 - [ ] Add checks for required options.
 - [ ] copy vs. rename single bams.
 - [ ] Reorganize config as object.
+- [ ] Add timing
 - [X] Fix gzip vs. bgzip issue.
