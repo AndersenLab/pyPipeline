@@ -193,5 +193,14 @@ else:
     move_file = """mv {bam_dir}/{ID}.sorted.bam {bam_dir}/{ID}.bam""".format(**locals())
     command(move_file, c_log)
 
-# Test for problems here...
+#=============================#
+# Save BAM Stats (Individual) #
+#=============================#
+bam_individual = "{bam_dir}/{ID}.bam".format(**locals())
+statfile = "{OPTIONS.analysis_dir}/statistics/BAM_{OPTIONS.bam_dir}.txt".format(**locals())
+save_bam_stats( bam_individual , "Individual", RG_header, statfile)
+
+
+
+# Test for problems here..
 sys.exit(0)

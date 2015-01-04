@@ -332,7 +332,16 @@ def rreplace(s, old, new, count):
     """
     return (s[::-1].replace(old[::-1], new[::-1], count))[::-1]
 
-
+def get_column(filename, col_num, delim = "\t"):
+    """ Returns list of a column from a file """
+    column = []
+    if file_exists(filename):
+        with open(filename,'r') as r:
+            for row in r:
+                column.append(row.split(delim)[col_num])
+        return column
+    else:
+        return []
 
 # Define Constants
 script_dir = get_script_dir()
