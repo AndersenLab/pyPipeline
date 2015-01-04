@@ -28,11 +28,12 @@ makedir("{vcf_dir}".format(**locals()))
 
 
 # Setup Chromosome Chunks
-chrom_chunks = [x for x in chunk_genome(OPTIONS.chrom_chunk_kb*1000, reference)]
-chrom_list = '\n'.join([x for x in chunk_genome(OPTIONS.chrom_chunk_kb*1000, reference)])
+chrom_chunks = [x for x in chunk_genome(OPTIONS.chrom_chunk_kb, reference)]
+chrom_list = '\n'.join([x for x in chunk_genome(OPTIONS.chrom_chunk_kb, reference)])
 chrom_chunks_file = "{vcf_dir}_chrom_chunks.txt".format(**locals())
-with open(chrom_chunks_file, "w+") as f:
-    f.write(chrom_list)
+if not file_exists(chrom_chunks_file):
+    with open(chrom_chunks_file, "w+") as f:
+        f.write(chrom_list)
     
 #==========#
 # BCFTools #
