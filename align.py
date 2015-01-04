@@ -74,7 +74,6 @@ RG_header = construct_RG_header(ID, opts)
 
 fastq_info_file_loc = "{OPTIONS.analysis_dir}/{OPTIONS.stat_dir}/FASTQ_INFO.txt".format(**locals())
 
-
 cksum_set = []
 try:
     cksum_set = Popen("grep 'cksum' {eav_file} | cut -f 5".format(**locals()), stdout=PIPE, shell=True).communicate()[0].strip().split("\n")
@@ -206,7 +205,7 @@ bam_individual_cksum = cksum(bam_individual)
 if bam_individual_cksum not in cksum_set:
     for k,v in samtools_stats(bam_individual).items():
         print k,v
-        eav.attribute = "BAM Statistics - Individual".format(ID=opts["ID"])
+        eav.attribute = "BAM Statistics - Individual"
         eav.sub_attribute = k
         eav.value = v
         eav.save()

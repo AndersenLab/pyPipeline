@@ -54,7 +54,6 @@ def submit_job(command, dependencies = None, dep_type = "afterok"):
 
 if __name__ == '__main__':
     opts = docopt(__doc__, version='pyPipeline')
-    print opts
 
     #========#
     # Basics #

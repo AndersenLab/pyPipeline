@@ -18,7 +18,7 @@ def fetch_genome(reference_name):
         os.system("curl {ftp_loc} > {script_dir}/genomes/{reference_name}/{filename}".format(**locals()))
         # Unzip and rezip with bgzip
         if filename.endswith(".gz"):
-            os.system("gunzip {filename} && bgzip {filename}".format(**locals()))
+            os.system("gunzip {filename} && bgzip {filename2}".format(filename=filename, filename2=filename.replace(".gz","")))
         print("Indexing {script_dir}/genomes/{reference_name}/{filename}".format(**locals()))
         os.system("bwa index {script_dir}/genomes/{reference_name}/{filename}".format(**locals()))
     else:

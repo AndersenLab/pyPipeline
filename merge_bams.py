@@ -2,6 +2,7 @@
 import sys, os
 from ast import literal_eval
 from utils import *
+from utils.seq_utils import *
 from commands import *
 import tempfile
 import glob
@@ -27,7 +28,7 @@ bam_dir = "{OPTIONS.analysis_dir}/{OPTIONS.bam_dir}".format(**locals())
 eav_file = "{OPTIONS.analysis_dir}/{OPTIONS.stat_dir}/eav.txt".format(**locals())
 stat_dir = "{OPTIONS.analysis_dir}/{OPTIONS.stat_dir}".format(**locals())
 eav = EAV()
-
+eav.file = eav_file
 
 #================#
 # Samtools Merge #
@@ -68,7 +69,31 @@ if COMMANDS.align.alignment_options.remove_temp == True:
 # Collect Stats for BAM #
 #=======================#
 
+cksum_set = []
+try:
+    cksum_set = Popen("grep 'cksum' {eav_file} | grep 'BAM Statistics - Merged' | cut -f 5".format(**locals()), stdout=PIPE, shell=True).communicate()[0].strip().split("\n")
+except:
+    pass
 
+bam_merged = "{bam_dir}/{SM}.bam".format(**locals())
+eav.entity = SM
+eav.sub_entity = SM + ".bam"
+eav.attribute = "BAM Statistics - Merged"
+bam_merged_cksum = cksum(bam_merged)
+
+if bam_merged_cksum not in cksum_set:
+    # Save coverage info
+    for contig, k,v in coverage(bam_merged):
+        eav.sub_attribute = contig + " (" + k + ")"
+        eav.value = v
+        eav.save()
+    for k,v in samtools_stats(bam_merged).items():
+        eav.sub_attribute = k
+        eav.value = v
+        eav.save()
+    eav.sub_attribute = "cksum"
+    eav.value = bam_merged_cksum 
+    eav.save()
 
 
 # Test for problems here...

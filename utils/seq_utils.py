@@ -96,7 +96,6 @@ def coverage(bam, mtchr = None):
         raise Exception("Bam file does not exist")
     contigs = get_contigs(bam)
 
-    print contigs
     # Guess mitochondrial chromosome
     mtchr = [x for x in contigs if x.lower().find("m") == 0]
     if len(mtchr) != 1:
@@ -108,10 +107,18 @@ def coverage(bam, mtchr = None):
     for c in contigs.keys():
         command = "samtools depth -r %s %s | awk '{sum+=$3;cnt++}END{print cnt \"\t\" sum}'" % (c, bam)
         coverage_dict[c] = {}
-        coverage_dict[c]["Bases Mapped"], coverage_dict[c]["Sum of Depths"] = map(int,Popen(command, stdout=PIPE, shell = True).communicate()[0].strip().split("\t"))
-        coverage_dict[c]["Breadth of Coverage"] = coverage_dict[c]["Bases Mapped"] / float(contigs[c])
-        coverage_dict[c]["Depth of Coverage"] = coverage_dict[c]["Sum of Depths"] / float(contigs[c])
-        coverage_dict[c]["Length"] = int(contigs[c])
+        try:
+            coverage_dict[c]["Bases Mapped"], coverage_dict[c]["Sum of Depths"] = map(int,Popen(command, stdout=PIPE, shell = True).communicate()[0].strip().split("\t"))
+            coverage_dict[c]["Breadth of Coverage"] = coverage_dict[c]["Bases Mapped"] / float(contigs[c])
+            coverage_dict[c]["Depth of Coverage"] = coverage_dict[c]["Sum of Depths"] / float(contigs[c])
+            coverage_dict[c]["Length"] = int(contigs[c])
+        except:
+            coverage_dict[c]["Bases Mapped"] = 0
+            coverage_dict[c]["Sum of Depths"] = 0
+            coverage_dict[c]["Breadth of Coverage"] = 0
+            coverage_dict[c]["Depth of Coverage"] = 0
+            coverage_dict[c]["Length"] = 0
+
 
     # Calculate Genome Wide Breadth of Coverage and Depth of Coverage
     genome_length = float(sum(contigs.values()))
@@ -139,7 +146,7 @@ def coverage(bam, mtchr = None):
     coverage = []
     for k,v in coverage_dict.items():
         for x in v.items():
-            coverage += [(k,x[0], x[1])]
+            coverage += [(x[0],k, x[1])]
     return coverage
 
 def samtools_stats(filename):
@@ -156,55 +163,5 @@ def samtools_stats(filename):
     stats["chksum_qualities"] = chksum[3]
     return stats
 
-bam_fieldnames = ['type',
-              'readgroups',
-              'filename',
-              'chksum_read_names',
-              'chksum_sequences',
-              'chksum_qualities',
-              'non-primary alignments',
-              'inward oriented pairs',
-              'reads unmapped',
-              'filtered sequences',
-              'pairs on different chromosomes',
-              'reads paired',
-              'raw total sequences',
-              'bases mapped (cigar)',
-              'maximum length',
-              'insert size standard deviation',
-              'insert size average',
-              'reads mapped and paired',
-              'bases trimmed',
-              'average quality',
-              'reads MQ0',
-              '1st fragments',
-              'pairs with other orientation',
-              'bases mapped',
-              'reads duplicated',
-              'reads QC failed',
-              'total length',
-              'reads properly paired',
-              'error rate',
-              'is sorted',
-              'mismatches',
-              'sequences',
-              'last fragments',
-              'outward oriented pairs',
-              'average length',
-              'bases duplicated',
-              'reads mapped']
-
-
-def save_bam_stats(filename, type, readgroups, statfile):
-    stats = samtools_stats(filename)
-    stats["filename"] = filename
-    stats["type"] = type
-    stats["readgroups"] = readgroups
-    write_header = not file_exists(statfile)
-    with open(statfile, 'a+') as f:
-      out = csv.DictWriter(f, delimiter='\t', fieldnames = bam_fieldnames)
-      if write_header:
-        out.writerow(dict((fn,fn) for fn in out.fieldnames))
-      out.writerow(stats)
 
 

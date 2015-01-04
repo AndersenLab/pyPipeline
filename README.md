@@ -55,9 +55,9 @@ pyPipeline
 - [ ] Remove stats files if sample file changed (use hash)
 - [X] FASTQ - statistics/
 	- [X] Check if stats already taken (based on chksum)
-	- [ ] Add date/time
-- [ ] BAM - statistics/
-	- [ ] Check if stats already taken
+	- [X] Add date/time
+- [X] BAM - statistics/
+	- [X] Check if stats already taken
 	- [ ] Add date/time
 - [ ] VCF - statstics/
 	- [ ] Check if stats already taken
@@ -89,4 +89,5 @@ pyPipeline
 - [ ] Copy analysis.yaml to analysis_dir
 - [ ] Add checks for required options.
 - [ ] copy vs. rename single bams.
+- [ ] Reorganize config as object.
 - [X] Fix gzip vs. bgzip issue.
