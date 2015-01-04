@@ -278,7 +278,7 @@ if __name__ == '__main__':
             SM = row["SM"]
             bam_set.append(SM)
             bam_file = "{bam_dir}/{SM}.bam".format(**locals())
-            if not file_exists(bam_file) or file_exists(bam_file + ".csi"):
+            if (not file_exists(bam_file) or file_exists(bam_file + ".csi")) and OPTIONS.debug == False:
                 raise Exception("Bam File or index does not exist: %s" % bam_file)
         
         bam_set = set(bam_set)
