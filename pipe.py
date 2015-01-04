@@ -12,7 +12,6 @@ Usage:
 Options:
   -h --help     Show this screen.
   --version     Show version.
-  --debug       Run in Debug Mode
 
 """
 from docopt import docopt
@@ -28,7 +27,7 @@ def check_rows(row):
 
 def submit_job(command, dependencies = None, dep_type = "afterok"):
     log.info(command)
-    if opts["--debug"] == False:
+    if LOCAL == False:
         if dependencies is not None:
             if len(dependencies) > 0:
                 dependencies = ':'.join(dependencies)
@@ -115,8 +114,13 @@ if __name__ == '__main__':
 
     # Running locally or on a cluster
     log_dir = "{OPTIONS.analysis_dir}/log".format(**locals())
+    stat_dir = "{OPTIONS.analysis_dir}/{OPTIONS.stat_dir}".format(**locals())
+    
+    makedir(OPTIONS.analysis_dir)
     makedir(log_dir)
-    if opts["--debug"] == True:
+    makedir(stat_dir)
+
+    if LOCAL == True:
         run = "python"
         log_files = ""
     else:
@@ -133,6 +137,13 @@ if __name__ == '__main__':
 
     reference = glob.glob("{script_dir}/genomes/{OPTIONS.reference}/*fa.gz".format(**locals()))[0]
     sample_file = open(config.OPTIONS.sample_file, 'rU')
+
+    #======================#
+    # Debug (testing) mode #
+    #======================#
+    if OPTIONS.debug == True:
+        bam_dir = "{OPTIONS.analysis_dir}/debug".format(**locals())
+        eav_file = "{OPTIONS.analysis_dir}/{OPTIONS.stat_dir}/DEBUG_eav.txt".format(**locals())
 
     #======#
     # Trim #
@@ -171,13 +182,16 @@ if __name__ == '__main__':
                 raise Exception("No ID defined for %s" % row)
             if SM == None:
                 raise Exception("No sample defined for %s" % ID)
+            if fq1 == fq2:
+                raise Exception("Both Fastq's share same name: %s %s" % (fq1, fq2))
 
             RG = construct_RG_header(ID, row).replace("\\t","\t")
             sample_info = {"ID" : ID, "RG": RG, "row": row}
             sample_set[SM].append(sample_info)
 
             # Check that row's exist before proceeding.
-            check_rows(row)
+            if OPTIONS.debug == False:
+                check_rows(row)
 
         if len(ID_set) > len(set(ID_set)):
             raise Exception("ID's are not Unique")
@@ -243,7 +257,7 @@ if __name__ == '__main__':
                 merge_bams = "{run} {script_dir}/merge_bams.py {config_file} \"{bams_to_merge}\"".format(**locals())
                 jobid = submit_job(merge_bams, dependency_list[SM], "afterok")
                 print jobid
-                if opts["--debug"] == False:
+                if LOCAL == False:
                     print("Submitted merge:{SM}; depends on: {ls}".format(SM=SM, ls=','.join(dependency_list[SM])))
             else:
                 log.info("%-50s already exists with all individual bams, skipping" % completed_merged_bam)

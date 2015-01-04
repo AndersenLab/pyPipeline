@@ -11,6 +11,8 @@ import csv
 # Command #
 #=========#
 
+truncate_fq = """gunzip -kfc {fq_loc} | head -n {OPTIONS.debug_fq_number_of_sequences} | gzip > {OPTIONS.fastq_dir}/DEBUG_FQ/{fq_filename}"""
+
 bwa = """bwa mem -R '{RG_header}' {bwa_options} {reference} {OPTIONS.fastq_dir}/{FQ1} {OPTIONS.fastq_dir}/{FQ2} | samtools view -bhu - > {bam_dir}/{ID}.unsorted.bam
          samtools sort -O bam -T {tmpname} {bam_dir}/{ID}.unsorted.bam > {bam_dir}/{ID}.sorted.bam"""
 
@@ -33,63 +35,28 @@ COMMANDS = config.COMMANDS
 align = COMMANDS.align # Pulls out alignment types.
 reference = glob.glob("{script_dir}/genomes/{OPTIONS.reference}/*fa.gz".format(**locals()))[0]
 bam_dir = "{OPTIONS.analysis_dir}/{OPTIONS.bam_dir}".format(**locals())
+eav_file = "{OPTIONS.analysis_dir}/{OPTIONS.stat_dir}/eav.txt".format(**locals())
+stat_dir = "{OPTIONS.analysis_dir}/{OPTIONS.stat_dir}".format(**locals())
+eav = EAV()
 
-#===========================#
-# Save Fastq Info and Stats #
-#===========================#
+#=============================#
+# Setup Debug Mode if desired #
+#=============================#
+if OPTIONS.debug == True:
+    # Truncate FASTQs for fast processing.
+    for fq in ["FQ1", "FQ2"]:
+        print OPTIONS.fastq_dir + "/DEBUG_FQ/" + opts[fq]
+        if not file_exists(OPTIONS.fastq_dir + "/DEBUG_FQ/" + opts[fq]):
+            fq_loc = opts[fq.lower()]
+            fq_filename = opts[fq]
+            print fq_loc, fq_filename
+            print truncate_fq.format(**locals())
+            command(truncate_fq.format(**locals()), c_log)
+    OPTIONS.fastq_dir = "{OPTIONS.fastq_dir}/DEBUG_FQ".format(**locals())
+else:
+    DEBUG = ""
 
-fieldnames = ['cksum',
-              'filename',
-              'ID',
-              'LB',
-              'SM',
-              'PL',
-              'instrument',
-              'run_id',
-              'flowcell_id',
-              'flowcell_lane',
-              'flowcell_tile',
-              'pair',
-              'index',
-              'Number_of_Reads',
-              'Unique_Reads', 
-              'Frequency_of_Unique_Reads',
-              'Most_Abundant_Sequence',
-              'Number_of_Times_Most_Abundant_Sequence_Occurs',
-              'Frequency_of_Most_Abundant_Sequence']
 
-fastq_info_file_loc = "{OPTIONS.analysis_dir}/statistics/FASTQ_INFO.txt".format(**locals())
-
-# Check to see if fastq info already stored.
-fq1_cksum = cksum(opts["fq1"])
-fq2_cksum = cksum(opts["fq2"])
-cksum_set = []
-if file_exists(fastq_info_file_loc):
-    with open(fastq_info_file_loc,'r') as r:
-        for row in r:
-            cksum_set.append(row.split("\t")[0])
-
-# Process fastq info
-with open(fastq_info_file_loc,'a') as f:
-    fq_info = csv.DictWriter(f, delimiter='\t', fieldnames=fieldnames)
-    if not file_exists(fastq_info_file_loc):
-        fq_info.writerow(dict((x,x) for x in fieldnames))
-    
-    if fq1_cksum not in cksum_set:
-        fq_data = dict(extract_fastq_info(opts["fq1"]).items() + get_fastq_stats(opts["fq1"]).items())
-        fq_data["filename"] = opts["fq1"]
-        fq_data["ID"], fq_data["LB"] = opts["ID"], opts["LB"] 
-        fq_data["SM"], fq_data["PL"] = opts["SM"], opts["PL"] 
-        fq_data["cksum"] = fq1_cksum
-        fq_info.writerow(fq_data)
-
-    if fq2_cksum not in cksum_set:
-        fq_data = dict(extract_fastq_info(opts["fq2"]).items() + get_fastq_stats(opts["fq2"]).items())
-        fq_data["filename"] = opts["fq2"]
-        fq_data["ID"], fq_data["LB"] = opts["ID"], opts["LB"] 
-        fq_data["SM"], fq_data["PL"] = opts["SM"], opts["PL"] 
-        fq_data["cksum"] = fq2_cksum
-        fq_info.writerow(fq_data)
 
 #=========================#
 # Setup Read Group Header #
@@ -99,6 +66,44 @@ with open(fastq_info_file_loc,'a') as f:
 
 ID = opts["ID"]
 RG_header = construct_RG_header(ID, opts)
+
+
+#===========================#
+# Save Fastq Info and Stats #
+#===========================#
+
+fastq_info_file_loc = "{OPTIONS.analysis_dir}/{OPTIONS.stat_dir}/FASTQ_INFO.txt".format(**locals())
+
+
+cksum_set = []
+try:
+    cksum_set = Popen("grep 'cksum' {eav_file} | cut -f 5".format(**locals()), stdout=PIPE, shell=True).communicate()[0].strip().split("\n")
+except:
+    pass
+
+opts["fq1_cksum"] = cksum(opts["fq1"])
+opts["fq2_cksum"] = cksum(opts["fq2"])
+
+for fq in ["FQ1", "FQ2"]:
+    # Check if fastq file stats already produced.
+    if opts[fq.lower() + "_cksum"] not in cksum_set:
+        eav.file = eav_file
+        eav.entity = opts["SM"]
+        eav.sub_entity = opts["ID"] + ".bam"
+        eav.attribute = "BAM Statistics - Individual [ID: {ID}".format(ID=opts["ID"])
+        for k,v in extract_fastq_info(opts[fq.lower()]).items() + get_fastq_stats(opts[fq.lower()]).items():
+            eav.sub_attribute = k
+            eav.value = v
+            eav.save()
+            print eav, "GETTING STATS"
+        # Save Checksum
+        eav.sub_attribute = "cksum"
+        eav.value = opts[fq.lower() + "_cksum"]
+        eav.save()
+        # Save Read Group
+        eav.sub_attribute = "Read Group"
+        eav.value = RG_header
+
 
 #=====#
 # BWA #
@@ -111,9 +116,7 @@ if "bwa" in align:
     FQ2 = opts["FQ2"]
 
     # Create Directories
-    makedir(OPTIONS["analysis_dir"])
-    makedir(OPTIONS["analysis_dir"] + "/" + OPTIONS.bam_dir)
-    makedir(OPTIONS["analysis_dir"] + "/statistics")
+    makedir(bam_dir)
     completed_bam = "{bam_dir}/{ID}.bam".format(**locals())
     unsorted_bam = "{bam_dir}/{ID}.unsorted.bam".format(**locals())
     if not file_exists(completed_bam) and not file_exists(unsorted_bam):
@@ -158,8 +161,8 @@ if "picard" in align:
                     file_to_delete = "rm {bam_dir}/{ID}.sorted.bam".format(**locals())
                     command(file_to_delete, c_log)
                 # Process Duplicate Report
-                stat_file = "{OPTIONS.analysis_dir}/statistics/PICARD_Aggregate_{OPTIONS.bam_dir}.txt".format(**locals())
-                histogram_file = "{OPTIONS.analysis_dir}/statistics/PICARD_Histogram_{OPTIONS.bam_dir}.txt".format(**locals())
+                stat_file = "{stat_dir}/PICARD_Aggregate_{bam_dir}.txt".format(**locals())
+                histogram_file = "{stat_dir}/PICARD_Histogram_{bam_dir}.txt".format(**locals())
                 # Aggregate Statistics from Picard dedup
                 aggregate_values, histogram_values = picard_dup_parser(dup_report, ID + ".bam")
                 if not file_exists(stat_file):

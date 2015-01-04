@@ -4,7 +4,7 @@ pyPipeline
 #### FASTQ
 
 - [ ] Nextera Adapter Trimming
-- [ ] Create debug mode, to sample first x number of lines for running analysis.
+- [X] Create debug mode, to sample first x number of lines for running analysis.
 
 #### Aligned Sequences: BAM
 
