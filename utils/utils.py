@@ -3,6 +3,7 @@ import re
 import yaml
 from subprocess import Popen, PIPE
 import logging
+from datetime import datetime
 
 
 
@@ -11,8 +12,10 @@ import logging
 #======================#
 
 if os.uname()[0] == "Darwin":
+    LOCAL = True
     xargs = "gxargs"
 else:
+    LOCAL = False
     xargs = "xargs"
 
 class dotdictify(dict):
@@ -44,6 +47,38 @@ class dotdictify(dict):
 
     __setattr__ = __setitem__
     __getattr__ = __getitem__
+
+
+class EAV:
+    """
+    Very simple Entity-Attribute-Value Object
+    """
+
+    def __init__(self):
+        self.entity = ""
+        self.sub_entity = ""
+        self.attribute = ""
+        self.sub_attribute = ""
+        self.value = ""
+        self.timestamp = datetime.now()
+        self.comment = ""
+        self.file = None
+
+    def __repr__(self):
+        return "\nEntity:{self.entity}\nEntity:{self.sub_entity}\nAttribute:{self.attribute}\nSub-Attribute:{self.sub_attribute}\nValue:{self.value}\ntimestamp:{self.timestamp}\n".format(**locals())
+
+    def save(self):
+        if self.file is None:
+            raise Exception("No Log File Set")
+        if not file_exists(self.file):
+            write_header = True
+        else:
+            write_header = False
+        with(open(self.file,"a")) as f:
+            if write_header == True:
+                f.write("entity\tsub_entity\tattribute\tsub_attribute\tvalue\tcomment\ttimestamp\n")
+            line = '\t'.join([self.entity, self.sub_entity, self.attribute, self.sub_attribute, str(self.value), self.comment, str(self.timestamp)])
+            f.write(line.format(**locals()) + "\n")
 
 
 def chunk_genome(chunk_size, reference):
@@ -127,6 +162,12 @@ def load_config_and_log(config, job_type = None):
             config["OPTIONS"][opt] = val
     general_log = setup_logger(config)
     c_log = command_log(config, job_type)
+
+    print config.OPTIONS
+
+    if config.OPTIONS.debug == True:
+        config.OPTIONS.analysis_dir = "DEBUG_" + config.OPTIONS.analysis_dir 
+
     return config, general_log, c_log
 
 def format_command(command_config):
@@ -290,6 +331,8 @@ def rreplace(s, old, new, count):
     stackoverflow.com/questions/2556108/
     """
     return (s[::-1].replace(old[::-1], new[::-1], count))[::-1]
+
+
 
 # Define Constants
 script_dir = get_script_dir()
