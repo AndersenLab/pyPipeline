@@ -23,6 +23,12 @@ OPTIONS = config.OPTIONS
 COMMANDS = config.COMMANDS
 align = COMMANDS.align # Pulls out alignment types.
 
+bam_dir = "{OPTIONS.analysis_dir}/{OPTIONS.bam_dir}".format(**locals())
+eav_file = "{OPTIONS.analysis_dir}/{OPTIONS.stat_dir}/eav.txt".format(**locals())
+stat_dir = "{OPTIONS.analysis_dir}/{OPTIONS.stat_dir}".format(**locals())
+eav = EAV()
+
+
 #================#
 # Samtools Merge #
 #================#
@@ -57,6 +63,13 @@ if COMMANDS.align.alignment_options.remove_temp == True:
         command("rm {bam_dir}/{bam}".format(**locals()), c_log)
         dup_report = bam.replace(".bam",".duplicate_report.txt")
         command("rm {bam_dir}/{dup_report}".format(**locals()), c_log)
+
+#=======================#
+# Collect Stats for BAM #
+#=======================#
+
+
+
 
 # Test for problems here...
 sys.exit(0)

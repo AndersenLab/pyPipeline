@@ -84,18 +84,20 @@ except:
 opts["fq1_cksum"] = cksum(opts["fq1"])
 opts["fq2_cksum"] = cksum(opts["fq2"])
 
+# EAV remain throughout.
+eav.file = eav_file
+eav.entity = opts["SM"]
+
+
 for fq in ["FQ1", "FQ2"]:
     # Check if fastq file stats already produced.
     if opts[fq.lower() + "_cksum"] not in cksum_set:
-        eav.file = eav_file
-        eav.entity = opts["SM"]
-        eav.sub_entity = opts["ID"] + ".bam"
-        eav.attribute = "BAM Statistics - Individual [ID: {ID}".format(ID=opts["ID"])
+        eav.sub_entity = opts[fq]
+        eav.attribute = "FASTQ Statistics".format(ID=opts["ID"])
         for k,v in extract_fastq_info(opts[fq.lower()]).items() + get_fastq_stats(opts[fq.lower()]).items():
             eav.sub_attribute = k
             eav.value = v
             eav.save()
-            print eav, "GETTING STATS"
         # Save Checksum
         eav.sub_attribute = "cksum"
         eav.value = opts[fq.lower() + "_cksum"]
@@ -161,12 +163,12 @@ if "picard" in align:
                     file_to_delete = "rm {bam_dir}/{ID}.sorted.bam".format(**locals())
                     command(file_to_delete, c_log)
                 # Process Duplicate Report
-                stat_file = "{stat_dir}/PICARD_Aggregate_{bam_dir}.txt".format(**locals())
-                histogram_file = "{stat_dir}/PICARD_Histogram_{bam_dir}.txt".format(**locals())
+                stat_file = "{stat_dir}/PICARD_Aggregate_{OPTIONS.bam_dir}.txt".format(**locals())      # Leave OPTIONS.bam_dir
+                histogram_file = "{stat_dir}/PICARD_Histogram_{OPTIONS.bam_dir}.txt".format(**locals()) # Leave OPTIONS.bam_dir
                 # Aggregate Statistics from Picard dedup
                 aggregate_values, histogram_values = picard_dup_parser(dup_report, ID + ".bam")
                 if not file_exists(stat_file):
-                    picard_stat_file = open(stat_file, "w+")
+                    picard_stat_file = open(stat_file, 'w+')
                     picard_header = [ 'BAM',
                                       'LIBRARY',
                                       'UNPAIRED_READS_EXAMINED',
@@ -178,13 +180,13 @@ if "picard" in align:
                                       'PERCENT_DUPLICATION\n']
                     picard_stat_file.write("\t".join(picard_header))
                     picard_stat_file.close()
-                with open(stat_file, "a+") as stat:
+                with open(stat_file, "a") as stat:
                     stat.write(aggregate_values)
                 if not file_exists(histogram_file):
-                    picard_histogram_file = open(histogram_file,"w+")
+                    picard_histogram_file = open(histogram_file,'w')
                     picard_histogram_file.write("BAM\tBIN\tVALUE\n")
                     picard_histogram_file.close()
-                with open(histogram_file, 'a+') as hist:
+                with open(histogram_file, 'a') as hist:
                     hist.write(histogram_values)
             else:
                 log.info("SKIPPING: " + dup_report + " exists; Skipping.")
@@ -196,9 +198,22 @@ else:
 #=============================#
 # Save BAM Stats (Individual) #
 #=============================#
+
 bam_individual = "{bam_dir}/{ID}.bam".format(**locals())
-statfile = "{OPTIONS.analysis_dir}/statistics/BAM_{OPTIONS.bam_dir}.txt".format(**locals())
-save_bam_stats( bam_individual , "Individual", RG_header, statfile)
+eav.sub_entity = ID + ".bam"
+bam_individual_cksum = cksum(bam_individual)
+
+if bam_individual_cksum not in cksum_set:
+    for k,v in samtools_stats(bam_individual).items():
+        print k,v
+        eav.attribute = "BAM Statistics - Individual".format(ID=opts["ID"])
+        eav.sub_attribute = k
+        eav.value = v
+        eav.save()
+    eav.sub_attribute = "cksum"
+    eav.value = bam_individual_cksum
+    eav.save()
+
 
 
 
