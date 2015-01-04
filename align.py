@@ -1,4 +1,9 @@
 #!/usr/bin/python
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=8
+#SBATCH --nodes=1
+#SBATCH --mem=16384
 import sys, os
 from ast import literal_eval
 from utils import *
@@ -11,10 +16,10 @@ import csv
 # Command #
 #=========#
 
-truncate_fq = """gunzip -kfc {fq_loc} | head -n {OPTIONS.debug_fq_number_of_sequences} | gzip > {OPTIONS.fastq_dir}/DEBUG_FQ/{fq_filename}"""
+truncate_fq = """{stream_fq} {fq_loc} | head -n {OPTIONS.debug_fq_number_of_sequences} | gzip > {OPTIONS.fastq_dir}/DEBUG_FQ/{fq_filename}"""
 
-bwa = """bwa mem -R '{RG_header}' {bwa_options} {reference} {OPTIONS.fastq_dir}/{FQ1} {OPTIONS.fastq_dir}/{FQ2} | samtools view -bhu - > {bam_dir}/{ID}.unsorted.bam
-         samtools sort -O bam -T {tmpname} {bam_dir}/{ID}.unsorted.bam > {bam_dir}/{ID}.sorted.bam"""
+bwa = """bwa mem -t {OPTIONS.cores} -R '{RG_header}' {bwa_options} {reference} {OPTIONS.fastq_dir}/{FQ1} {OPTIONS.fastq_dir}/{FQ2} | samtools view -@ {OPTIONS.cores} -bhu - > {bam_dir}/{ID}.unsorted.bam
+         samtools -@ {OPTIONS.cores} sort -O bam -T {bam_dir}/{tmpname} {bam_dir}/{ID}.unsorted.bam > {bam_dir}/{ID}.sorted.bam"""
 
 mark_dups = """
             java -jar {script_dir}/tools/picard.jar MarkDuplicates \
@@ -45,7 +50,6 @@ eav = EAV()
 if OPTIONS.debug == True:
     # Truncate FASTQs for fast processing.
     for fq in ["FQ1", "FQ2"]:
-        print OPTIONS.fastq_dir + "/DEBUG_FQ/" + opts[fq]
         if not file_exists(OPTIONS.fastq_dir + "/DEBUG_FQ/" + opts[fq]):
             fq_loc = opts[fq.lower()]
             fq_filename = opts[fq]

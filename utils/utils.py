@@ -14,9 +14,11 @@ from datetime import datetime
 if os.uname()[0] == "Darwin":
     LOCAL = True
     xargs = "gxargs"
+    stream_fq = "gunzip -kfc"
 else:
     LOCAL = False
     xargs = "xargs"
+    stream_fq = "zcat"
 
 class dotdictify(dict):
     """
@@ -162,8 +164,6 @@ def load_config_and_log(config, job_type = None):
             config["OPTIONS"][opt] = val
     general_log = setup_logger(config)
     c_log = command_log(config, job_type)
-
-    print config.OPTIONS
 
     if config.OPTIONS.debug == True:
         config.OPTIONS.analysis_dir = "DEBUG_" + config.OPTIONS.analysis_dir 
