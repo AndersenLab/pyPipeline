@@ -139,6 +139,11 @@ if __name__ == '__main__':
     reference = glob.glob("{script_dir}/genomes/{OPTIONS.reference}/*fa.gz".format(**locals()))[0]
     sample_file = open(config.OPTIONS.sample_file, 'rU')
 
+    # Log Files
+    if LOCAL == False:
+        output_dirs = " --output={log_dir}/{analysis_type}.{{SM}}.%N.%j.txt  --error={log_dir}/{analysis_type}.{{SM}}.%N.%j.err ".format(**locals())
+
+
     #======================#
     # Debug (testing) mode #
     #======================#
@@ -242,10 +247,6 @@ if __name__ == '__main__':
                             re_align = True
 
                     if not file_exists(single_bam) or re_align:
-
-                        if LOCAL == False:
-                            output_dirs = " --output={log_dir}/merge.{SM}.%j.txt --error={log_dir}/merge.{SM}.%j.err ".format(**locals())
-
                         align = "{run} {output_dirs} {script_dir}/align.py {config_file} \"{fq}\"".format(**locals())
                         jobid = submit_job(align)
                         dependency_list[SM].append(jobid)
@@ -263,10 +264,6 @@ if __name__ == '__main__':
             if not file_exists(completed_merged_bam) or not file_exists(completed_merged_bam + ".bai"):
                 bam_set = [x["ID"] + ".bam" for x in sample_set[SM]]
                 bams_to_merge = (SM, bam_set)
-
-                if LOCAL == False:
-                    output_dirs = " --output={log_dir}/align.{ID}.%j.txt --error={log_dir}/align.{ID}.%j.err ".format(**locals())
-
                 merge_bams = "{run} {output_dirs} {script_dir}/merge_bams.py {config_file} \"{bams_to_merge}\"".format(**locals())
                 jobid = submit_job(merge_bams, dependency_list[SM], "afterok")
                 print jobid
@@ -308,8 +305,6 @@ if __name__ == '__main__':
                 complete_individual = "{vcf_dir}/{SM}.bcftools.individual.vcf.gz".format(**locals())
                 individual_vcfs_check = (not file_exists(complete_individual) and COMMANDS.snps.snp_options.remove_temp == False)
                 if not all(map(file_exists, variant_files )) or not file_exists(union_variant_file) or individual_vcfs_check:
-                    if LOCAL == False:
-                        output_dirs = " --output={log_dir}/snp_ind.{SM}.%j.txt --error={log_dir}/snp_ind.{SM}.%j.err ".format(**locals())
                     call_snps = """{run} {output_dirs} {script_dir}/call_snps_individual.py {config_file} \"{SM}.bam\"""".format(**locals())
                     jobid = submit_job(call_snps)
                     dependency_list.append(jobid)

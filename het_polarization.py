@@ -43,18 +43,21 @@ def main():
             for k,v in enumerate(l[9:]):
                 # Exclude any line 
                 if v.startswith("0/1"):
-                    PL_set = [phred2p(int(i)) for i in v.split(":")[PL].split(",")]
-                    cond_prob = [PL_set[0]*((1-het_prior)/2), PL_set[1]*het_prior, PL_set[2]*(1-het_prior)/2]
-                    cond_prob = [cond_prob[0]/sum(cond_prob), cond_prob[1]/sum(cond_prob), cond_prob[2]/sum(cond_prob)]
-                    if add_HP_flag == 0:
-                        l[8] = l[8] + ":HP"
-                        add_HP_flag = 1
-                    if (max(cond_prob) == cond_prob[0]):
-                        l[k+9] = v.replace("0/1","0/0") + ":AA"   
-                    elif (max(cond_prob) == cond_prob[2]):
-                        l[k+9] = v.replace("0/1","1/1") + ":BB"
-                    else:
-                        l[k+9] = v + ":AB"
+                    # It appears that, in very rare occasions, only a single PL value is generated.
+                    PL_set = v.split(":")[PL].split(",")
+                    if len(PL_set) == 3:
+                        PL_set = [phred2p(int(i)) for i in PL_set]
+                        cond_prob = [PL_set[0]*((1-het_prior)/2), PL_set[1]*het_prior, PL_set[2]*(1-het_prior)/2]
+                        cond_prob = [cond_prob[0]/sum(cond_prob), cond_prob[1]/sum(cond_prob), cond_prob[2]/sum(cond_prob)]
+                        if add_HP_flag == 0:
+                            l[8] = l[8] + ":HP" 
+                            add_HP_flag = 1
+                        if (max(cond_prob) == cond_prob[0]):
+                            l[k+9] = v.replace("0/1","0/0") + ":AA"   
+                        elif (max(cond_prob) == cond_prob[2]):
+                            l[k+9] = v.replace("0/1","1/1") + ":BB"
+                        else:
+                            l[k+9] = v + ":AB"
             sys.stdout.write("\t".join(l) + '\n')
         else:
             sys.stdout.write(l)

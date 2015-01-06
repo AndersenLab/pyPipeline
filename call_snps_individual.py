@@ -78,7 +78,7 @@ if 'bcftools' in snps:
 
         # Heterozygous Polarization
         if COMMANDS.snps.bcftools.__heterozygous_polarization == True:
-            filters = "| python {script_dir}/het_polarization.py ".format(**locals())
+            filters = "| bcftools view -O v | python {script_dir}/het_polarization.py ".format(**locals())
         else:
             filters = ""
 
