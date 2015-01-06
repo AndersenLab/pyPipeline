@@ -69,7 +69,7 @@ if 'bcftools' in snps:
         xarg_command = "REGION='__region__'; {samtools_mpileup} | {bcftools_call} -O z > {vcf_dir}/TMP.{SM}.${{REGION/:/_}}.bcftools.{ind_union_filename}.vcf.gz && bcftools index {vcf_dir}/TMP.{SM}.${{REGION/:/_}}.bcftools.{ind_union_filename}.vcf.gz".format(**locals())
         
         # Replace last colon (screws up file names)
-        bcftools = """{xargs} --arg-file="{chrom_chunks_file}" -P {OPTIONS.cores} -I {{}} bash -c '{xarg_command}' """.format(**locals()).replace("__region__","{}")
+        bcftools = """{xargs} --arg-file="{chrom_chunks_file}" -P 24 -I {{}} bash -c '{xarg_command}' """.format(**locals()).replace("__region__","{}")
         command(bcftools, c_log)
         
         #=========#
@@ -88,7 +88,7 @@ if 'bcftools' in snps:
         # Merge, sort, and index
         concat_list = ' '.join(["{vcf_dir}/TMP.{SM}.{chunk}.bcftools.{ind_union_filename}.vcf.gz".format(**locals()).replace(":","_") for chunk in chrom_chunks])
         bcftools_concat = """bcftools concat -O z {concat_list} {filters} > {complete_ind_vcf};
-                             bcftools index {complete_ind_vcf}""".format(**locals()) 
+                             bcftools index -f {complete_ind_vcf}""".format(**locals()) 
         command(bcftools_concat, c_log)
         
         # Remove temporary files

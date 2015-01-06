@@ -214,9 +214,9 @@ def command(command, log):
     program_version = version(program)
     log.add("\n# " + program_version )
     log.add(command.strip() + "\n")
-    command = Popen(command, shell=True, stdout=PIPE, stderr=PIPE)
+    command = Popen(command, shell=True, stdout=PIPE, stderr=None)
     for line in command.stdout:
-        sys.write.stdout(line)
+        print(line)
     if command.stderr is not None:
         raise Exception(command.stderr)
 
