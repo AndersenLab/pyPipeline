@@ -19,7 +19,6 @@ import glob
 from utils import *
 from utils.genomes import *
 import csv
-import operator
 from pprint import pprint as pp
 
 def check_fqs(fq):
