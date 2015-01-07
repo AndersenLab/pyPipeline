@@ -1,4 +1,8 @@
 #!/usr/bin/python
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=4096
 import sys, os
 from ast import literal_eval
 from utils import *
@@ -53,7 +57,7 @@ if 'bcftools' in snps:
 
 	# Heterozygous Polarization
 	if COMMANDS.snps.bcftools.__heterozygous_polarization == True:
-		filters = "| python {script_dir}/het_polarization.py ".format(**locals())
+		filters = "| bcftools view -O v | python {script_dir}/het_polarization.py ".format(**locals())
 	else:
 		filters = ""
 
