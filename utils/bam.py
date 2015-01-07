@@ -5,7 +5,7 @@ from pprint import pprint as pp
 
 class bamfile:
     """
-        Basic Bam Functions
+        Basic utility functions
     """
 
     def __init__(self, filename):
@@ -29,9 +29,3 @@ class bamfile:
             header_set[tag] = sorted(header_set[tag])
             return header_set
 
-
-
-x = bamfile("/Users/daniel/Documents/temp/testing/bam2/test1.bam")
-
-print pp(x.header)
-print x.RG
