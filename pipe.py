@@ -26,31 +26,45 @@ def check_fqs(fq):
     if not file_exists(fq["fq1"]) or not file_exists(fq["fq2"]):
         raise Exception("File Missing; Check: {fq1}, {fq2}".format(fq1=fq["fq1"], fq2=fq["fq2"]))
 
+
+node_cycle = -1
+
+def get_node():
+    global node_cycle
+    node_cycle += 1 
+    return str(OPTIONS.nodes[ node_cycle %len(OPTIONS.nodes)])
+        
+        
+
 def submit_job(command, dependencies = None, dep_type = "afterok"):
     log.info(command)
     if LOCAL == False:
+        command = command.split(" ")
+        use_node =  "--nodelist={node} ".format(node="node" + get_node())
+        command.insert(1, use_node)
         if dependencies is not None:
             if len(dependencies) > 0:
                 dependencies = ':'.join(dependencies)
-                depends_on = "--dependency={dep_type}:".format(**locals())
+                depends_on = " --dependency={dep_type}:".format(**locals())
                 depends_on += dependencies
             else:
                 depends_on = ""
-            command = command.split(" ")
             command.insert(1, depends_on)
-            command = ' '.join(command)
         else:
             depends_on = ""
+        command = ' '.join(command)
         print command
         jobid, err = Popen(command, stdout=PIPE, stderr=PIPE, shell=True).communicate()
         jobid = jobid.strip().split(" ")[-1]
+        print jobid
         if jobid.isdigit() == False:
             raise Exception("Error submitting %s" % jobid)
             exit()
         else:
             return jobid
     else:
-        os.system(command)
+        print(command)
+        #os.system(command)
         return None
 
 if __name__ == '__main__':
@@ -142,7 +156,6 @@ if __name__ == '__main__':
     # Log Files
     if LOCAL == False:
         output_dirs = " --output={log_dir}/{analysis_type}.{{SM}}.%N.%j.txt  --error={log_dir}/{analysis_type}.{{SM}}.%N.%j.err ".format(**locals())
-
 
     #======================#
     # Debug (testing) mode #
@@ -335,14 +348,23 @@ if __name__ == '__main__':
             submit_job(merge_snps, dependency_list)
         else:
             print("Merged File Already Exists")
-
-    else:
-        exit()
-    if analysis_type == "test":
+    elif analysis_type == "test":
         print "GREAT"
-        r = "{run} {script_dir}/call_snps_individual.py {config_file} '[1,2,3]'".format(**locals())
-        os.system(r)
-        
+        x = -1
+        print OPTIONS.nodes
+        print get_node()
+        print get_node()
+        print get_node()
+        print get_node()
+        print get_node()
+        print get_node()
+        print get_node()
+        print get_node()
+        print get_node()
+        print get_node()
+        print get_node()
+        print get_node()
+
 
 
 
