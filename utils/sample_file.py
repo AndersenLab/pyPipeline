@@ -190,10 +190,15 @@ class sample_file:
         """
         bam_individual_set = []
         for row in self.row_set:
+            RG_sf = row["RG"] # Read Group as defined in sample file.
             bam_ind_filename = config.bam_dir + "/" + row["ID"] + ".bam"
             print bam_ind_filename
-            print file_exists(bam_ind_filename)
-            print pp(row)
+            bam_exists = file_exists(bam_ind_filename)
+            if bam_exists:
+                # Read Group as defined within aligned bam.
+                bamRG = bamfile(bam_ind_filename).RG[0]
+                if bamRG != RG_sf:
+                    print bamRG, row["RG"]
 
 
 
