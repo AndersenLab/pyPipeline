@@ -17,6 +17,7 @@ Options:
 from docopt import docopt
 import glob
 from utils import *
+from utils import config
 from utils.genomes import *
 import csv
 from pprint import pprint as pp
@@ -84,7 +85,7 @@ if __name__ == '__main__':
     # Genome Retrieval #
     #==================#
 
-    if opts["genome"] == True:
+    if opts["genome"] is True:
         if opts["<name>"] is not None:
             fetch_genome(opts["<name>"])
         else:
@@ -188,12 +189,12 @@ if __name__ == '__main__':
         ID_set = [] # Used to check uniqueness of IDs
         for row in csv.DictReader(sample_file, delimiter='\t', quoting=csv.QUOTE_NONE):
             if fq["RUN"] != "NO":
-            fq1, fq2 = row["FQ1"], row["FQ2"]
-            row["fq1"] = "{OPTIONS.fastq_dir}/{fq1}".format(**locals())
-            row["fq2"] = "{OPTIONS.fastq_dir}/{fq2}".format(**locals())
-            # Construct Individual BAM Dict
-            ID = row["ID"]
-            SM = row["SM"]
+                fq1, fq2 = row["FQ1"], row["FQ2"]
+                row["fq1"] = "{OPTIONS.fastq_dir}/{fq1}".format(**locals())
+                row["fq2"] = "{OPTIONS.fastq_dir}/{fq2}".format(**locals())
+                # Construct Individual BAM Dict
+                ID = row["ID"]
+                SM = row["SM"]
 
                 # Sanity Checks
                 if ID in ID_set:

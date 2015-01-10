@@ -9,6 +9,8 @@ def fetch_genome(reference_name):
     from utils import script_dir
     genome_list = yaml.load(open(script_dir + "/utils/genomes.yaml","r"))
     makedir("genomes")
+    if reference_name not in genome_list:
+        msg("Reference Genome not available", "error")
     ftp_loc = genome_list[reference_name]
     filename = os.path.split(ftp_loc)[1]
     makedir("{script_dir}/genomes/{reference_name}".format(**locals()))
@@ -22,9 +24,7 @@ def fetch_genome(reference_name):
         print("Indexing {script_dir}/genomes/{reference_name}/{filename}".format(**locals()))
         os.system("bwa index {script_dir}/genomes/{reference_name}/{filename}".format(**locals()))
     else:
-        print("")
-        print("Reference Already downloaded and indexed.")
-        print("")
+        error("Reference Already downloaded and indexed.")
 
 def list_genomes():
     """ 

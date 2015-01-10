@@ -11,6 +11,15 @@ from datetime import datetime
 # Set System Specifics #
 #======================#
 
+def msg(text, msg_type = "\033[1m"):
+    """ Reports an error to the user and exits """
+    color = {'error': '\033[91m', 'warning': '\033[93m' }
+    print("")
+    print(color[msg_type] + "pyPipeline %s: " % (msg_type) + '\033[0m' + text)
+    print("")
+    sys.exit(0)
+
+
 if os.uname()[0] == "Darwin":
     LOCAL = True
     xargs = "gxargs"
