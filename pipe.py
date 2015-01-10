@@ -5,7 +5,7 @@ Usage:
   pipe.py trim <config>
   pipe.py align <config> [options]
   pipe.py snps (individual|joint) <config> [options]
-  pipe.py samplefile <filename/dir>
+  pipe.py samplefile <config>
   pipe.py genome [<name>]
   pipe.py test <config> [options]
 
@@ -17,15 +17,10 @@ Options:
 from docopt import docopt
 import glob
 from utils import *
-from utils import config
+from utils.configuration import *
 from utils.genomes import *
 import csv
 from pprint import pprint as pp
-
-def check_fqs(fq):
-    if not file_exists(fq["fq1"]) or not file_exists(fq["fq2"]):
-        raise Exception("File Missing; Check: {fq1}, {fq2}".format(fq1=fq["fq1"], fq2=fq["fq2"]))
-
 
 node_cycle = -1
 
@@ -33,8 +28,7 @@ def get_node():
     global node_cycle
     node_cycle += 1 
     return str(OPTIONS.nodes[ node_cycle %len(OPTIONS.nodes)])
-        
-        
+
 
 def submit_job(command, dependencies = None, dep_type = "afterok"):
     log.info(command)
@@ -67,19 +61,25 @@ def submit_job(command, dependencies = None, dep_type = "afterok"):
         #os.system(command)
         return None
 
+
+
+
 if __name__ == '__main__':
     opts = docopt(__doc__, version='pyPipeline')
+    print opts
 
-    #========#
-    # Basics #
-    #========#
+    # Setup configuration
+    if opts["<config>"] is not None:
+        cf = config(opts["<config>"])
+        # Create new sample file
+        if opts["samplefile"] is True:
+            if file_exists(cf.sample_file):
+                msg("Sample file already exists","error")
+            sf = cf.get_sample_file()
+            sf.new_sample_file()
 
-    config_file = opts["<config>"]
-    analysis_dir = os.getcwd()
-
-    #
-    # Add Checks here for required options
-    #
+    # sample file
+    sf = cf.get_sample_file()
 
     #==================#
     # Genome Retrieval #
@@ -90,84 +90,21 @@ if __name__ == '__main__':
             fetch_genome(opts["<name>"])
         else:
             list_genomes()
-        exit()
-
-    #=================#
-    # New Sample File #
-    #=================#
-
-    """
-        Create a sample file where Library, Sample, and Platform info can be added.
-        Optionally update an analysis file
-    """
-
-    if opts["samplefile"] == True: 
-        header = "FQ1\tFQ2\tID\tLB\tSM\tPL\tRUN\n"
-        new_sample_file = open(opts["<filename/dir>"] + ".txt",'w')
-        new_sample_file.write(header)
-        if is_dir(opts["<filename/dir>"]):
-            # Construct a sample file using the directory info.
-            sample_set = sorted(glob.glob(opts["<filename/dir>"] + "/*.fq.gz"))
-            fastq_pairs = zip(sorted([os.path.split(x)[1] for x in sample_set if x.find("1.fq.gz") != -1]), \
-                sorted([os.path.split(x)[1] for x in sample_set if x.find("2.fq.gz") != -1]))
-            for pair in fastq_pairs:
-                ID = get_fq_ID(pair)
-                new_sample_file.write("\t".join(pair) + "\t" + ID + "\n")
-        exit()
+        exit(0)
 
     #=======#
     # Setup #
     #=======#
 
-    analysis_types = ["trim", "align", "merge", "snps", "indels", "test"]
+    analysis_types = ["trim", "align", "merge", "snps", "indels", "transposons", "test"]
     analysis_type = [x for x in opts if opts[x] == True and x in analysis_types][0]
-    # Load Configuration
-    config, log, c_log = load_config_and_log(config_file, analysis_type)
-    OPTIONS = config.OPTIONS
-    COMMANDS = config.COMMANDS
 
-    # Running locally or on a cluster
-    log_dir = "{OPTIONS.analysis_dir}/log".format(**locals())
-    stat_dir = "{OPTIONS.analysis_dir}/{OPTIONS.stat_dir}".format(**locals())
-    
-    makedir(OPTIONS.analysis_dir)
-    makedir(log_dir)
-    makedir(stat_dir)
-
-    if OPTIONS.debug == True:
-        print OPTIONS.fastq_dir + "/DEBUG_FQ"
-        print OPTIONS
-        makedir(OPTIONS.fastq_dir + "/DEBUG_FQ")
-
-    if LOCAL == True:
-        run = "python"
-        log_files = ""
-    else:
-        run = "sbatch "
-        output_dirs = ""
-
-    bam_dir = "{OPTIONS.analysis_dir}/{OPTIONS.bam_dir}".format(**locals())
-    vcf_dir = "{OPTIONS.analysis_dir}/{OPTIONS.vcf_dir}".format(**locals())
-    
-    snp_callers = COMMANDS.snps
-    snp_callers = [x for x in snp_callers if x in available_snp_callers]
-
-    log.info("#=== Beginning Analysis ===#")
-    log.info("Running " + opts["<config>"])
-
-    reference = glob.glob("{script_dir}/genomes/{OPTIONS.reference}/*fa.gz".format(**locals()))[0]
-    sample_file = open(config.OPTIONS.sample_file, 'rU')
+    cf.log("#=== Beginning Analysis ===#")
+    cf.log("Running " + opts["<config>"])
 
     # Log Files
     if LOCAL == False:
         output_dirs = " --output={log_dir}/{analysis_type}.{{SM}}.%N.%j.txt  --error={log_dir}/{analysis_type}.{{SM}}.%N.%j.err ".format(**locals())
-
-    #======================#
-    # Debug (testing) mode #
-    #======================#
-    if OPTIONS.debug == True:
-        bam_dir = "{OPTIONS.analysis_dir}/debug".format(**locals())
-        eav_file = "{OPTIONS.analysis_dir}/{OPTIONS.stat_dir}/DEBUG_eav.txt".format(**locals())
 
     #======#
     # Trim #
@@ -182,7 +119,7 @@ if __name__ == '__main__':
     #===========#
 
     elif analysis_type == "align":
-        log.info("Performing Alignment")
+        cf.log("Performing Alignment")
         sample_set = {} # Generate a list of samples.
         bam_dir_white_list = [] # List of bams to keep following alignment; removes extras
         # Construct Sample Set

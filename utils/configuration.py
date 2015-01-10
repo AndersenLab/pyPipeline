@@ -5,6 +5,7 @@ import glob
 from pprint import pprint as pp
 from utils import *
 from seq_utils import *
+from datetime import datetime
 
 
 os.chdir("/Users/Dan/Documents/tmp/")
@@ -52,29 +53,46 @@ class EAV:
                               str(self.timestamp)])
             f.write(line.format(**locals()) + "\n")
 
+class general_log:
+    """
+        Simple log file.
+    """
+    def __init__(self, config):
+        self.log = open(config.config_name + ".log", 'a')
+
+    def add(self, msg, analysis_type):
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        log_msg = "{d}\t{a}\t{l}\n".format(d=now, a=analysis_type, l=msg)
+        self.log.write(log_msg)
 
 class command_log:
     """
     The Command log is used to log commands that have been run.
     """
-    def __init__(self, config, job_type):
-        analysis_dir = config.OPTIONS.analysis_dir
-        self.log = open(analysis_dir + "/" + job_type + ".commands.log", 'a')
+    def __init__(self, config):
+        self.log = open(config.config_name + ".commands.log", 'a')
 
     def add(self, command):
         # Clean up whitespace.
-        command = re.sub("[^\S\r\n]+", " ", command).replace("\n ", "\n").strip() + "\n"
-        self.log.write(command)
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        command = re.sub("[^\S\r\n]+", " ", command).replace("\n ", "\n").strip()
+        log_msg = "{d}\t{comm}\n".format(d=now,comm=command)
+        self.log.write(log_msg)
 
 
 class config:
     """
-        Class for handling configuration set up.
+        Class for handling config set up.
     """
     def __init__(self, config):
         self.config_filename = config
+        self.config_name = config.replace(".yaml","")
         self.config = yaml.load(open(config, 'r'))
         script_dir = os.path.dirname(os.path.realpath(__file__)).replace("/utils", "")
+
+        # Set up Logs
+        self.general_log = general_log(self)
+        self.command_log = command_log(self)
 
         # Options that are required within the config file.
         self.reqd_options = ["reference",
@@ -102,6 +120,12 @@ class config:
             if k.endswith("dir") and k != "fastq_dir":
                 makedir(i)
 
+        # Setup command info
+        self.cmd = dotdictify(self.config["COMMANDS"])
+
+        # snp callers
+        self.snp_callers = [x for x in self.cmd.snps if x in available_snp_callers]
+
         # Setup Reference Here
         ref_dir = "{script_dir}/genomes/{self.reference}/*f*.gz".format(**locals())
         try:
@@ -109,6 +133,10 @@ class config:
             assert(file_exists(self.reference_file))
         except:
             error("File does not exist")
+
+    def log(self, msg, analysis_type = ""):
+        """ Adds to the log file for a given analysis. """
+        self.general_log.add(msg, analysis_type)
 
     def get_sample_file(self):
         """
@@ -151,6 +179,12 @@ class sample_file:
     """
 
     def __init__(self, filename, config):
+        self.filename = filename
+        self.config = config
+        self.sample_file_vars = ["FQ1", "FQ2", "ID", "LB", "SM"]
+        # If the sample file exists, don't attempt to open it.
+        if not file_exists(filename):
+            return None
         self.sample_file = open(filename, 'rU')
 
         # Define Sets
@@ -161,7 +195,6 @@ class sample_file:
         self.SM_Group_set = {}  # Tracks bams (by ID) belonging to a sample.
         self.fq_set = []
 
-        self.required_values = ["FQ1", "FQ2", "ID", "LB", "SM"]
         with self.sample_file as f:
             iter_csv = csv.DictReader(f, delimiter='\t', quoting=csv.QUOTE_NONE)
             for line, row in enumerate(iter_csv):
@@ -181,21 +214,22 @@ class sample_file:
                 fq_exists = map(file_exists, fq_pair)
                 self.fastq_set.append(fq_pair)
 
-                empty_vals = [x for x in self.required_values if not row[x]]
+                empty_vals = [x for x in self.sample_file_vars if not row[x]]
                 # Run basic checks
                 if row["FQ1"] == row["FQ2"]:
-                    raise Exception(
-                        "Both Fastq's share same name on line %s: %s" % (line, fq1))
+                    msg(
+                        "Both Fastq's share same name on line %s in %s: %s" % (line, self.filename, fq1), "error")
                 elif row["SM"] == row["ID"]:
-                    raise Exception(
-                        "Sample Name and Sample ID can not be the same [line %s - %s]" % (line, row["ID"]))
+                    msg(
+                        "Sample Name and Sample ID can not be the same in %s [line %s - %s]" %
+                        (self.filename, line, row["ID"]), "error")
                 elif len(empty_vals) > 0:
                     empty_vals = ','.join(empty_vals)
-                    raise Exception("Missing values on line %s: %s" % (line, empty_vals))
+                    msg("Missing values on line %s of %s: %s" % (line, self.filename, empty_vals), "error")
                 elif not all(fq_exists):
                     missing_fastq = ','.join([fq_pair[x] for x in range(0, 2) if not fq_exists[x]])
-                    raise Exception(
-                        "Fastq(s) Missing on line %s: %s" % (line, missing_fastq))
+                    msg(
+                        "Fastq(s) Missing on line %s in %s: %s" % (line, self.filename, missing_fastq), "error")
 
                 if not row["PL"]:
                     row["PL"] = "ILLUMINA"
@@ -250,6 +284,25 @@ class sample_file:
                 raise Exception(
                     "Non-uniq Fastqs exist: %s" % ', '.join(non_uniq_fastq_set[0]))
 
+    def new_sample_file(self):
+        """
+            Generates a new sample file from a directory
+        """
+        header = '\t'.join(self.sample_file_vars + ["RUN\n"])
+        sample_filename = self.filename
+        if is_dir(sample_filename):
+            msg("Sample file is a directory", "error")
+        new_sample_file = open(sample_filename, 'w')
+        new_sample_file.write(header)
+        sample_set = sorted(glob.glob(self.config.fastq_dir + "/*.fq.gz"))
+        fastq_pairs = zip(sorted([os.path.split(x)[1] for x in sample_set if x.find("1.fq.gz") != -1]),
+                          sorted([os.path.split(x)[1] for x in sample_set if x.find("2.fq.gz") != -1]))
+        for pair in fastq_pairs:
+            ID = common_prefix(pair).strip("-_")
+            new_sample_file.write("\t".join(pair) + "\t" + ID + "\n")
+        msg("Sample File Created")
+        exit(0)
+
     def get_merged_bams(self):
         """
             Generates list of bam merged (multi-sample)
@@ -279,26 +332,3 @@ class sample_file:
                    "bam_exists": bam_exists,
                    "bam_index_exists": bam_index_exists,
                    "bam_ind_filename": bam_ind_filename}
-
-
-
-
-
-
-cf = config("analysis.yaml")
-
-print dir(cf)
-
-print cf.cores
-print cf.reference_file
-
-sf = cf.get_sample_file()
-
-print pp(sf.SM_Group_set)
-print pp(sf.fq_set)
-
-
-#sf = config.get_sample_file()
-
-#print pp([x for x in sf.get_merged_bams()])
-

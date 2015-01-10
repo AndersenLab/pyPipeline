@@ -24,16 +24,15 @@ def fetch_genome(reference_name):
         print("Indexing {script_dir}/genomes/{reference_name}/{filename}".format(**locals()))
         os.system("bwa index {script_dir}/genomes/{reference_name}/{filename}".format(**locals()))
     else:
-        error("Reference Already downloaded and indexed.")
+        msg("Reference Already downloaded and indexed.", "error")
 
 def list_genomes():
     """ 
         Prints a list of available genomes.
     """
-    print os.getcwd()
     genome_list = yaml.load(open(script_dir + "/utils/genomes.yaml","r"))
     print("")
-    print("%-30s\t%-30s" % ("Reference Name", "Location"))
+    print("\033[1m%-30s\t%-30s\033[0m" % ("Reference Name", "Location"))
     for k,v in genome_list.items():
         print("%-30s\t%-30s" % (k, v))
     print("")

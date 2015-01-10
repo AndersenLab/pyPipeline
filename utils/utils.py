@@ -17,12 +17,14 @@ def msg(text, msg_type = "\033[1m"):
     print("")
     print(color[msg_type] + "pyPipeline %s: " % (msg_type) + '\033[0m' + text)
     print("")
-    sys.exit(0)
-
+    if msg_type == "error":
+        sys.exit(0)
 
 if os.uname()[0] == "Darwin":
     LOCAL = True
     xargs = "gxargs"
+    run = "python"
+    output_dirs = ""
     stream_fq = "gunzip -kfc"
 else:
     LOCAL = False
@@ -289,9 +291,6 @@ def is_defined(val):
     else:
         return True
 
-def get_fq_ID(fqs):
-    """ Returns common prefix of fastq's; stripping out select characters """
-    return common_prefix(fqs).strip("-_")
 
 def construct_RG_header(ID, opts):  
     if is_defined(opts["SM"]):
