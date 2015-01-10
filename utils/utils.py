@@ -349,15 +349,9 @@ def check_seq_file(filename):
         its associated indices exists
     """
     if filename.endswith(".vcf.gz") or filename.endswith(".bcf"):
-        if file_exists(filename) and file_exists(filename + ".csi"):
-            return True
-        else:
-            return False
+        return file_exists(filename), file_exists(filename + ".csi")
     if filename.endswith(".bam"):
-        if file_exists(filename) and file_exists(filename + "bai"):
-            return True
-        else:
-            return False
+        return file_exists(filename), file_exists(filename + "bai")
 
 # Define Constants
 script_dir = get_script_dir()

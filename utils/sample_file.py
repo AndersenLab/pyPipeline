@@ -11,7 +11,7 @@ os.chdir("/Users/dancook/Documents/tmp/")
 
 class config:
     """
-        Class for handling set up
+        Class for handling configuration set up.
     """
     def __init__(self, config):
         self.config_filename = config
@@ -85,7 +85,7 @@ def get_non_uniq(non_uniq_list):
 
 class sample_file:
     """
-        Class for handling actions associated with the sample file.
+        Class for handling actions associated with the sample file:
     """
 
     def __init__(self, filename, config):
@@ -150,6 +150,7 @@ class sample_file:
 
                 row["RG"] = RG
                 row["raw_RG"] = raw_RG
+                row["bam_ind_filename"] = config.bam_dir + "/" + row["ID"] + ".bam"
 
                 # Group IDs and Samples by Read Group 
                 SM = row["SM"]
@@ -165,7 +166,7 @@ class sample_file:
 
                 # If all checks passed, append row dictionary
                 self.row_set.append(row)
-
+            
             # Sort Read Group List
             self.SM_ID_set
             # Check that all IDs are uniq
@@ -179,35 +180,66 @@ class sample_file:
             if non_uniq_fastq_set:
                 raise Exception(
                         "Non-uniq Fastqs exist: %s" % ', '.join(non_uniq_fastq_set[0]))
+    
+
+
     def get_merged_bams(self):
-        pass
+        """
+            Generates list of bam merged (multi-sample)
+            files; whether or not they exist, and whether
+            or not they have the correct read group
+            which reflects
+        """
+        print self.SM_ID_set
+
     def get_bam_individual(self):
         """
-            Returns list of bam_individual files,
+            Generates list of bam individual files,
             whether or not they have the correct
-            read group, and whether or not
-            they exist.
+            read group, whether they exist, and
+            whether or not their indices exist.
         """
         bam_individual_set = []
         for row in self.row_set:
-            RG_sf = row["RG"] # Read Group as defined in sample file.
-            bam_ind_filename = config.bam_dir + "/" + row["ID"] + ".bam"
-            print bam_ind_filename
-            bam_exists = file_exists(bam_ind_filename)
+            RG_from_sf = row["RG"] # Read Group as defined in sample file.
+            bam_ind_filename = row["bam_ind_filename"]
+            bam_exists, bam_index_exists = check_seq_file(bam_ind_filename)
+            RG_from_bam = False # Define as false initially.
             if bam_exists:
                 # Read Group as defined within aligned bam.
-                bamRG = bamfile(bam_ind_filename).RG[0]
-                if bamRG != RG_sf:
-                    print bamRG, row["RG"]
+                RG_from_bam = bamfile(bam_ind_filename).RG[0]
+            RG_identical = (RG_from_bam == RG_from_sf)
+            yield {"RG_identical": RG_identical,
+                   "bam_exists": bam_exists,
+                   "bam_index_exists" : bam_index_exists,
+                   "bam_ind_filename": bam_ind_filename}
 
 
 
 
 
 
-config = config("/Users/dancook/Documents/tmp/analysis.yaml")
+cf = config("/Users/dancook/Documents/tmp/analysis.yaml")
 
-sf = config.get_sample_file()
+print dir(cf)
 
-print sf.get_bam_individual()
+print cf.cores
+print cf.reference_file
+
+sf = cf.get_sample_file()
+print dir(sf)
+
+
+from pprint import pprint as pp
+
+print pp(sf.fastq_set)
+
+
+print cf.SM_ID_set
+
+print "mclintock.sh -reference {cf.reference_file} -1 first_pair-1.fq".format(**locals())
+
+#sf = config.get_sample_file()
+
+#print pp([x for x in sf.get_merged_bams()])
 
