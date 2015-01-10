@@ -1,4 +1,9 @@
 #!/usr/bin/python
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=8
+#SBATCH --nodes=1
+#SBATCH --mem=8192
 import sys, os
 from ast import literal_eval
 from utils import *

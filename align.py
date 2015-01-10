@@ -168,29 +168,32 @@ if "picard" in align:
                 # Process Duplicate Report
                 stat_file = "{stat_dir}/PICARD_Aggregate_{OPTIONS.bam_dir}.txt".format(**locals())      # Leave OPTIONS.bam_dir
                 histogram_file = "{stat_dir}/PICARD_Histogram_{OPTIONS.bam_dir}.txt".format(**locals()) # Leave OPTIONS.bam_dir
-                # Aggregate Statistics from Picard dedup
-                aggregate_values, histogram_values = picard_dup_parser(dup_report, ID + ".bam")
-                if not file_exists(stat_file):
-                    picard_stat_file = open(stat_file, 'w+')
-                    picard_header = [ 'BAM',
-                                      'LIBRARY',
-                                      'UNPAIRED_READS_EXAMINED',
-                                      'READ_PAIRS_EXAMINED',
-                                      'UNMAPPED_READS',
-                                      'ESTIMATED_LIBRARY_SIZE',
-                                      'READ_PAIR_OPTICAL_DUPLICATES',
-                                      'READ_PAIRS_EXAMINED', 'UNPAIRED_READS_EXAMINED',
-                                      'PERCENT_DUPLICATION\n']
-                    picard_stat_file.write("\t".join(picard_header))
-                    picard_stat_file.close()
-                with open(stat_file, "a") as stat:
-                    stat.write(aggregate_values)
-                if not file_exists(histogram_file):
-                    picard_histogram_file = open(histogram_file,'w')
-                    picard_histogram_file.write("BAM\tBIN\tVALUE\n")
-                    picard_histogram_file.close()
-                with open(histogram_file, 'a') as hist:
-                    hist.write(histogram_values)
+                # Aggregate Statistics from Picard dedup - seems error prone currently...
+                try:
+                    aggregate_values, histogram_values = picard_dup_parser(dup_report, ID + ".bam")
+                    if not file_exists(stat_file):
+                        picard_stat_file = open(stat_file, 'w+')
+                        picard_header = [ 'BAM',
+                                          'LIBRARY',
+                                          'UNPAIRED_READS_EXAMINED',
+                                          'READ_PAIRS_EXAMINED',
+                                          'UNMAPPED_READS',
+                                          'ESTIMATED_LIBRARY_SIZE',
+                                          'READ_PAIR_OPTICAL_DUPLICATES',
+                                          'READ_PAIRS_EXAMINED', 'UNPAIRED_READS_EXAMINED',
+                                          'PERCENT_DUPLICATION\n']
+                        picard_stat_file.write("\t".join(picard_header))
+                        picard_stat_file.close()
+                    with open(stat_file, "a") as stat:
+                        stat.write(aggregate_values)
+                    if not file_exists(histogram_file):
+                        picard_histogram_file = open(histogram_file,'w')
+                        picard_histogram_file.write("BAM\tBIN\tVALUE\n")
+                        picard_histogram_file.close()
+                    with open(histogram_file, 'a') as hist:
+                        hist.write(histogram_values)
+                except:
+                    pass
             else:
                 log.info("SKIPPING: " + dup_report + " exists; Skipping.")
 else:

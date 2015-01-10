@@ -1,4 +1,9 @@
 #!/usr/bin/python
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=8
+#SBATCH --nodes=1
+#SBATCH --mem=8192
 import sys, os
 from ast import literal_eval
 from utils import *
@@ -23,11 +28,12 @@ makedir("{vcf_dir}".format(**locals()))
 
 
 # Setup Chromosome Chunks
-chrom_chunks = [x for x in chunk_genome(OPTIONS.chrom_chunk_kb*1000, reference)]
-chrom_list = '\n'.join([x for x in chunk_genome(OPTIONS.chrom_chunk_kb*1000, reference)])
+chrom_chunks = [x for x in chunk_genome(OPTIONS.chrom_chunk_kb, reference)]
+chrom_list = '\n'.join([x for x in chunk_genome(OPTIONS.chrom_chunk_kb, reference)])
 chrom_chunks_file = "{vcf_dir}_chrom_chunks.txt".format(**locals())
-with open(chrom_chunks_file, "w+") as f:
-    f.write(chrom_list)
+if not file_exists(chrom_chunks_file):
+    with open(chrom_chunks_file, "w+") as f:
+        f.write(chrom_list)
     
 #==========#
 # BCFTools #
@@ -63,7 +69,7 @@ if 'bcftools' in snps:
         xarg_command = "REGION='__region__'; {samtools_mpileup} | {bcftools_call} -O z > {vcf_dir}/TMP.{SM}.${{REGION/:/_}}.bcftools.{ind_union_filename}.vcf.gz && bcftools index {vcf_dir}/TMP.{SM}.${{REGION/:/_}}.bcftools.{ind_union_filename}.vcf.gz".format(**locals())
         
         # Replace last colon (screws up file names)
-        bcftools = """{xargs} --arg-file="{chrom_chunks_file}" -P {OPTIONS.cores} -I {{}} bash -c '{xarg_command}' """.format(**locals()).replace("__region__","{}")
+        bcftools = """{xargs} --arg-file="{chrom_chunks_file}" -P 24 -I {{}} bash -c '{xarg_command}' """.format(**locals()).replace("__region__","{}")
         command(bcftools, c_log)
         
         #=========#
@@ -72,7 +78,7 @@ if 'bcftools' in snps:
 
         # Heterozygous Polarization
         if COMMANDS.snps.bcftools.__heterozygous_polarization == True:
-            filters = "| python {script_dir}/het_polarization.py ".format(**locals())
+            filters = "| bcftools view -O v | python {script_dir}/het_polarization.py ".format(**locals())
         else:
             filters = ""
 
@@ -82,7 +88,7 @@ if 'bcftools' in snps:
         # Merge, sort, and index
         concat_list = ' '.join(["{vcf_dir}/TMP.{SM}.{chunk}.bcftools.{ind_union_filename}.vcf.gz".format(**locals()).replace(":","_") for chunk in chrom_chunks])
         bcftools_concat = """bcftools concat -O z {concat_list} {filters} > {complete_ind_vcf};
-                             bcftools index {complete_ind_vcf}""".format(**locals()) 
+                             bcftools index -f {complete_ind_vcf}""".format(**locals()) 
         command(bcftools_concat, c_log)
         
         # Remove temporary files

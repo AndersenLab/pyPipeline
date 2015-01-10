@@ -19,38 +19,51 @@ import glob
 from utils import *
 from utils.genomes import *
 import csv
-import operator
 from pprint import pprint as pp
 
 def check_fqs(fq):
     if not file_exists(fq["fq1"]) or not file_exists(fq["fq2"]):
         raise Exception("File Missing; Check: {fq1}, {fq2}".format(fq1=fq["fq1"], fq2=fq["fq2"]))
 
+
+node_cycle = -1
+
+def get_node():
+    global node_cycle
+    node_cycle += 1 
+    return str(OPTIONS.nodes[ node_cycle %len(OPTIONS.nodes)])
+        
+        
+
 def submit_job(command, dependencies = None, dep_type = "afterok"):
     log.info(command)
     if LOCAL == False:
+        command = command.split(" ")
+        use_node =  "--nodelist={node} ".format(node="node" + get_node())
+        command.insert(1, use_node)
         if dependencies is not None:
             if len(dependencies) > 0:
                 dependencies = ':'.join(dependencies)
-                depends_on = "--dependency={dep_type}:".format(**locals())
+                depends_on = " --dependency={dep_type}:".format(**locals())
                 depends_on += dependencies
             else:
                 depends_on = ""
-            command = command.split(" ")
             command.insert(1, depends_on)
-            command = ' '.join(command)
         else:
             depends_on = ""
+        command = ' '.join(command)
         print command
         jobid, err = Popen(command, stdout=PIPE, stderr=PIPE, shell=True).communicate()
         jobid = jobid.strip().split(" ")[-1]
+        print jobid
         if jobid.isdigit() == False:
             raise Exception("Error submitting %s" % jobid)
             exit()
         else:
             return jobid
     else:
-        os.system(command)
+        print(command)
+        #os.system(command)
         return None
 
 if __name__ == '__main__':
@@ -130,6 +143,7 @@ if __name__ == '__main__':
         log_files = ""
     else:
         run = "sbatch "
+        output_dirs = ""
 
     bam_dir = "{OPTIONS.analysis_dir}/{OPTIONS.bam_dir}".format(**locals())
     vcf_dir = "{OPTIONS.analysis_dir}/{OPTIONS.vcf_dir}".format(**locals())
@@ -142,6 +156,10 @@ if __name__ == '__main__':
 
     reference = glob.glob("{script_dir}/genomes/{OPTIONS.reference}/*fa.gz".format(**locals()))[0]
     sample_file = open(config.OPTIONS.sample_file, 'rU')
+
+    # Log Files
+    if LOCAL == False:
+        output_dirs = " --output={log_dir}/{analysis_type}.{{SM}}.%N.%j.txt  --error={log_dir}/{analysis_type}.{{SM}}.%N.%j.err ".format(**locals())
 
     #======================#
     # Debug (testing) mode #
@@ -244,10 +262,6 @@ if __name__ == '__main__':
                             re_align = True
 
                     if not file_exists(single_bam) or re_align:
-
-                        if LOCAL == False:
-                            output_dirs = " --output={log_dir}/align.{ID}.%j.txt --error={log_dir}/align.{ID}.%j.err ".format(**locals())
-
                         align = "{run} {output_dirs} {script_dir}/align.py {config_file} \"{fq}\"".format(**locals())
                         jobid = submit_job(align)
                         dependency_list[SM].append(jobid)
@@ -265,8 +279,7 @@ if __name__ == '__main__':
             if not file_exists(completed_merged_bam) or not file_exists(completed_merged_bam + ".bai"):
                 bam_set = [x["ID"] + ".bam" for x in sample_set[SM]]
                 bams_to_merge = (SM, bam_set)
-
-                merge_bams = "{run} {script_dir}/merge_bams.py {config_file} \"{bams_to_merge}\"".format(**locals())
+                merge_bams = "{run} {output_dirs} {script_dir}/merge_bams.py {config_file} \"{bams_to_merge}\"".format(**locals())
                 jobid = submit_job(merge_bams, dependency_list[SM], "afterok")
                 if LOCAL == False:
                     print("Submitted merge:{SM}; depends on: {ls}".format(SM=SM, ls=','.join(dependency_list[SM])))
@@ -305,7 +318,7 @@ if __name__ == '__main__':
                 complete_individual = "{vcf_dir}/{SM}.bcftools.individual.vcf.gz".format(**locals())
                 individual_vcfs_check = (not file_exists(complete_individual) and COMMANDS.snps.snp_options.remove_temp == False)
                 if not all(map(file_exists, variant_files )) or not file_exists(union_variant_file) or individual_vcfs_check:
-                    call_snps = """{run} {script_dir}/call_snps_individual.py {config_file} \"{SM}.bam\"""".format(**locals())
+                    call_snps = """{run} {output_dirs} {script_dir}/call_snps_individual.py {config_file} \"{SM}.bam\"""".format(**locals())
                     jobid = submit_job(call_snps)
                     dependency_list.append(jobid)
         # Merge individual bams
@@ -335,14 +348,23 @@ if __name__ == '__main__':
             submit_job(merge_snps, dependency_list)
         else:
             print("Merged File Already Exists")
-
-    else:
-        exit()
-    if analysis_type == "test":
+    elif analysis_type == "test":
         print "GREAT"
-        r = "{run} {script_dir}/call_snps_individual.py {config_file} '[1,2,3]'".format(**locals())
-        os.system(r)
-        
+        x = -1
+        print OPTIONS.nodes
+        print get_node()
+        print get_node()
+        print get_node()
+        print get_node()
+        print get_node()
+        print get_node()
+        print get_node()
+        print get_node()
+        print get_node()
+        print get_node()
+        print get_node()
+        print get_node()
+
 
 
 
