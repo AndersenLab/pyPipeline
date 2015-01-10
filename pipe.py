@@ -70,6 +70,7 @@ if __name__ == '__main__':
 
     # Setup configuration
     if opts["<config>"] is not None:
+        config_file = opts["<config>"]
         cf = config(opts["<config>"])
         # Create new sample file
         if opts["samplefile"] is True:
@@ -120,42 +121,25 @@ if __name__ == '__main__':
 
     elif analysis_type == "align":
         cf.log("Performing Alignment")
-        sample_set = {} # Generate a list of samples.
-        bam_dir_white_list = [] # List of bams to keep following alignment; removes extras
-        # Construct Sample Set
-        ID_set = [] # Used to check uniqueness of IDs
-        for row in csv.DictReader(sample_file, delimiter='\t', quoting=csv.QUOTE_NONE):
-            if fq["RUN"] != "NO":
-                fq1, fq2 = row["FQ1"], row["FQ2"]
-                row["fq1"] = "{OPTIONS.fastq_dir}/{fq1}".format(**locals())
-                row["fq2"] = "{OPTIONS.fastq_dir}/{fq2}".format(**locals())
-                # Construct Individual BAM Dict
-                ID = row["ID"]
-                SM = row["SM"]
+        for bam in  sf.check_bams():
+            # Check merged bam
+            if not bam["bam_merged_exists_and_RG_correct"]:
+                # Remove merged bam if it exists.
 
-                # Sanity Checks
-                if ID in ID_set:
-                    raise Exception("IDs are not unique: %s" % ID)
-                else:
-                    ID_set.append(ID)
-                if SM not in sample_set:
-                    sample_set[SM] = []
-                if ID == None or ID == "":
-                    raise Exception("No ID defined for %s" % fq)
-                if SM == None or SM == "":
-                    raise Exception("No sample defined for %s" % ID)
-                if fq1 == fq2:
-                    raise Exception("Both Fastq's share same name: %s %s" % (fq1, fq2))
-                if ID == SM:
-                    raise Exception("ID cannot be equal to SM")
 
-            RG = construct_RG_header(ID, row).replace("\\t","\t")
-            sample_info = {"ID" : ID, "RG": RG, "row": row}
-            sample_set[SM].append(sample_info)
-
-            # Check that row's exist before proceeding.
-            if OPTIONS.debug == False:
-                check_rows(row)
+                # Check individual bams
+                for ind_bam, fq, RG, ind_bam_exists in zip(bam["bam_ind_filename"],
+                                                           bam["fq"],
+                                                           bam["raw_RG"],
+                                                           bam["bam_ind_exists_and_RG_correct"]):
+                    if ind_bam_exists == False:
+                        fq = {"fq1": fq[0], "fq2": fq[1], "RG": RG}
+                        print fq
+                        align = "{run} {output_dirs} {script_dir}/align.py {config_file} \"{fq}\"".format(**locals())
+                        jobid = submit_job(align)
+                        dependency_list[SM].append(jobid)
+                # Merge Bam
+        
 
         if len(ID_set) > len(set(ID_set)):
             raise Exception("ID's are not Unique")

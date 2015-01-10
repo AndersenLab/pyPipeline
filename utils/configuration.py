@@ -189,8 +189,6 @@ class sample_file:
 
         # Define Sets
         self.fastq_set = []
-        self.bam_set = []
-        self.vcf_set = []
         self.ID_set = []        # Used with Individual Bam Set.
         self.SM_Group_set = {}  # Tracks bams (by ID) belonging to a sample.
         self.fq_set = []
@@ -258,6 +256,7 @@ class sample_file:
                                              "bam_ind_filename": []}
                 self.SM_Group_set[SM]["ID"].append(ID)
                 self.SM_Group_set[SM]["RG"].append(RG)
+                self.SM_Group_set[SM]["RG"] = sorted(self.SM_Group_set[SM]["RG"])
                 self.SM_Group_set[SM]["fq"].append(fq_pair)
                 self.SM_Group_set[SM]["raw_RG"].append(raw_RG)
                 self.SM_Group_set[SM]["bam_ind_filename"].append(bam_ind_filename)
@@ -270,8 +269,7 @@ class sample_file:
 
                 # If all checks passed, append row dictionary
                 self.fq_set.append(row)
-                # Sort Read Group List
-            self.SM_Group_set
+
             # Check that all IDs are uniq
             non_uniq_IDs = get_non_uniq(self.ID_set)
             if get_non_uniq(self.ID_set):
@@ -303,32 +301,24 @@ class sample_file:
         msg("Sample File Created")
         exit(0)
 
-    def get_merged_bams(self):
+    def check_bams(self):
         """
             Generates list of bam merged (multi-sample)
             files; whether or not they exist, and whether
             or not they have the correct read group
             which reflects
         """
-        print self.SM_Group_set
-
-    def get_bam_individual(self):
-        """
-            Generates list of bam individual files,
-            whether or not they have the correct
-            read group, whether they exist, and
-            whether or not their indices exist.
-        """
-        for row in self.fq_set:
-            RG_from_sf = row["RG"]  # Read Group as defined in sample file.
-            bam_ind_filename = row["bam_ind_filename"]
-            bam_exists, bam_index_exists = check_seq_file(bam_ind_filename)
-            RG_from_bam = False  # Define as false initially.
-            if bam_exists:
-                # Read Group as defined within aligned bam.
-                RG_from_bam = bamfile(bam_ind_filename).RG[0]
-            RG_identical = (RG_from_bam == RG_from_sf)
-            yield {"RG_identical": RG_identical,
-                   "bam_exists": bam_exists,
-                   "bam_index_exists": bam_index_exists,
-                   "bam_ind_filename": bam_ind_filename}
+        for bam in self.SM_Group_set.values():
+            bam["bam_merged_exists_and_RG_correct"] = False
+            if all(check_seq_file(bam["bam_merged_filename"])):
+                if bam["RG"] == bam(bam["bam_merged_filename"]).RG:
+                    bam["bam_merged_exists_and_RG_correct"] = True
+            else:
+                bam["bam_ind_exists_and_RG_correct"] = []
+                for ind_bam in bam["bam_ind_filename"]:
+                    if all(check_seq_file(ind_bam)):
+                        if bam(bam_ind).RG[0] in bam["RG"]:
+                            bam["bam_ind_exists_and_RG_correct"].append(True)
+                    else:
+                        bam["bam_ind_exists_and_RG_correct"].append(False)
+            yield bam
