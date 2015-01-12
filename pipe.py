@@ -59,8 +59,6 @@ if __name__ == '__main__':
     analysis_types = ["trim", "align", "merge", "snps", "indels", "test", "transposons"]
     analysis_type = [x for x in opts if opts[x] == True and x in analysis_types][0]
 
-    reference = glob.glob("{script_dir}/genomes/{OPTIONS.reference}/*f*.gz".format(**locals()))[0]
-
     #======================#
     # Debug (testing) mode #
     #======================#

@@ -68,7 +68,7 @@ class config:
             self.reference_file = glob.glob(ref_dir)[0]
             assert(file_exists(self.reference_file))
         except:
-            error("File does not exist")
+            msg("Reference file '%s' does not exist" % (self.reference), "error")
 
     def log(self, msg, analysis_type=""):
         """ Adds to the log file for a given analysis. """
