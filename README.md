@@ -26,7 +26,7 @@ pyPipeline
 	- [X] Parallelization (Across Regions)
 	- [X] Merge Individual Samples (Option)
 	- [X] Standard Filters
-		- [ ] Hard Filters
+		- [X] Hard Filters
 	- [X] Remove individual(temp files; option)
 	- [X] Heterozygous Polarization Filter
 	- [X] Generate joint sites
@@ -35,6 +35,7 @@ pyPipeline
 	- [X] Joint Calling
 	- [X] Individual Calling
 - [ ] Add function for 'downgrading' VCF for viewing in IGV (temporary)
+- [ ] Write function for testing integrity of .csi index (e.g. see if older, check size, optionally check whether 1+ variants exist within file.)
 
 ### Callers 
 
@@ -90,4 +91,5 @@ pyPipeline
 - [ ] Add checks for required options.
 - [ ] copy vs. rename single bams.
 - [ ] Reorganize config as object.
+- [ ] Add timing
 - [X] Fix gzip vs. bgzip issue.
