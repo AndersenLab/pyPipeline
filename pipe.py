@@ -15,54 +15,12 @@ Options:
 
 """
 from docopt import docopt
-import glob
 from utils import *
+from utils.constants import *
 from utils.configuration import *
 from utils.genomes import *
 import csv
 from pprint import pprint as pp
-
-node_cycle = -1
-
-def get_node():
-    global node_cycle
-    node_cycle += 1 
-    return str(OPTIONS.nodes[ node_cycle %len(OPTIONS.nodes)])
-
-
-def submit_job(command, dependencies = None, dep_type = "afterok"):
-    log.info(command)
-    if LOCAL == False:
-        command = command.split(" ")
-        use_node =  "--nodelist={node} ".format(node="node" + get_node())
-        command.insert(1, use_node)
-        if dependencies is not None:
-            if len(dependencies) > 0:
-                dependencies = ':'.join(dependencies)
-                depends_on = " --dependency={dep_type}:".format(**locals())
-                depends_on += dependencies
-            else:
-                depends_on = ""
-            command.insert(1, depends_on)
-        else:
-            depends_on = ""
-        command = ' '.join(command)
-        print command
-        jobid, err = Popen(command, stdout=PIPE, stderr=PIPE, shell=True).communicate()
-        jobid = jobid.strip().split(" ")[-1]
-        print jobid
-        if jobid.isdigit() == False:
-            raise Exception("Error submitting %s" % jobid)
-            exit()
-        else:
-            return jobid
-    else:
-        print(command)
-        #os.system(command)
-        return None
-
-
-
 
 if __name__ == '__main__':
     opts = docopt(__doc__, version='pyPipeline')
@@ -97,15 +55,10 @@ if __name__ == '__main__':
     # Setup #
     #=======#
 
-    analysis_types = ["trim", "align", "merge", "snps", "indels", "transposons", "test"]
     analysis_type = [x for x in opts if opts[x] == True and x in analysis_types][0]
 
     cf.log("#=== Beginning Analysis ===#")
     cf.log("Running " + opts["<config>"])
-
-    # Log Files
-    if LOCAL == False:
-        output_dirs = " --output={log_dir}/{analysis_type}.{{SM}}.%N.%j.txt  --error={log_dir}/{analysis_type}.{{SM}}.%N.%j.err ".format(**locals())
 
     #======#
     # Trim #
@@ -121,92 +74,37 @@ if __name__ == '__main__':
 
     elif analysis_type == "align":
         cf.log("Performing Alignment")
-        for bam in  sf.check_bams():
+        for bam in sf.check_bams():
             # Check merged bam
-            if not bam["bam_merged_exists_and_RG_correct"]:
-                # Remove merged bam if it exists.
-
-
+            dependency_list = []
+            if bam["bam_merged_exists_and_RG_correct"] is False:
+                # Remove merged bam if it exists (RG is wrong)
+                if file_exists(bam["bam_merged_filename"]):
+                    cf.log("merged bam %s exists or incorrect read group." %
+                    bam["bam_merged_filename"])
+                    cf.command("rm %s" % bam["bam_merged_filename"])
                 # Check individual bams
-                for ind_bam, fq, RG, ind_bam_exists in zip(bam["bam_ind_filename"],
-                                                           bam["fq"],
-                                                           bam["raw_RG"],
-                                                           bam["bam_ind_exists_and_RG_correct"]):
-                    if ind_bam_exists == False:
-                        fq = {"fq1": fq[0], "fq2": fq[1], "RG": RG}
-                        print fq
-                        align = "{run} {output_dirs} {script_dir}/align.py {config_file} \"{fq}\"".format(**locals())
-                        jobid = submit_job(align)
-                        dependency_list[SM].append(jobid)
-                # Merge Bam
-        
-
-        if len(ID_set) > len(set(ID_set)):
-            raise Exception("ID's are not Unique")
-
-        dependency_list = {} # Used to keep jobs working in the proper order.
-        for SM in sample_set.keys():
-            dependency_list[SM] = []
-            # Check the header of the merged bam to see if 
-            # current file already exists within
-            completed_merged_bam = "{bam_dir}/{SM}.bam".format(**locals())
-            # Check to see if merged bam contains constitutive bams
-            if file_exists(completed_merged_bam) and file_exists(completed_merged_bam + ".bai"):
-                RG = get_bam_RG(completed_merged_bam)
-
-                RG_ind = [x["RG"] for x in sample_set[SM]]
-                if split_read_group(RG_ind) != split_read_group(RG):
-                    # Delete merged Bam, and re-align all individual.
-                    log.info("RG do not match; deleting.")
-                    remove_file(completed_merged_bam)
-                else:
-                    log.info("{SM}.bam contains all specified individual bams.".format(**locals()))
-
-            # Align fastq sets
-            if not file_exists(completed_merged_bam) or not file_exists(completed_merged_bam + ".bai"):
-                for seq_run in sample_set[SM]:
-                    ID = seq_run["ID"]
-                    fq = seq_run["fq"]
-                    single_bam = "{bam_dir}/{ID}.bam".format(**locals())
-                    if OPTIONS.alignment_options.remove_temp == False:
-                        bam_dir_white_list.append(single_bam)
-                        bam_dir_white_list.append(single_bam + ".bai")
-                    # Check single bam RG
-                    re_align = False
-                    if file_exists(single_bam):
-                        current_RG = sorted(get_bam_RG(single_bam)[0].split("\t"))
-                        seq_run["RG"] = sorted(seq_run["RG"].split("\t"))
-                        single_RG_incorrect = (seq_run["RG"] != current_RG)
-                        if (seq_run["RG"] != current_RG):
-                            log.info("Readgroup for {single_bam} does not match file; deleting".format(**locals()))
-                            remove_file(single_bam)
-                            remove_file(single_bam + ".bai")
-                            re_align = True
-
-                    if not file_exists(single_bam) or re_align:
-                        align = "{run} {output_dirs} {script_dir}/align.py {config_file} \"{fq}\"".format(**locals())
-                        jobid = submit_job(align)
-                        dependency_list[SM].append(jobid)
-                    else:
-                        log.info("%-50s already aligned individually, skipping" % single_bam)
-
-        #
-        # Merging
-        #
-        for SM in sample_set.keys():  
-            completed_merged_bam = "{bam_dir}/{SM}.bam".format(**locals())
-            bam_dir_white_list.append(completed_merged_bam)
-            bam_dir_white_list.append(completed_merged_bam + ".bai")
-            # Merge Bams for same samples.
-            if not file_exists(completed_merged_bam) or not file_exists(completed_merged_bam + ".bai"):
-                bam_set = [x["ID"] + ".bam" for x in sample_set[SM]]
-                bams_to_merge = (SM, bam_set)
-                merge_bams = "{run} {output_dirs} {script_dir}/merge_bams.py {config_file} \"{bams_to_merge}\"".format(**locals())
-                jobid = submit_job(merge_bams, dependency_list[SM], "afterok")
-                if LOCAL == False:
-                    print("Submitted merge:{SM}; depends on: {ls}".format(SM=SM, ls=','.join(dependency_list[SM])))
-            else:
-                log.info("%-50s already exists with all individual bams, skipping" % completed_merged_bam)
+                for ind_bam, ind_bam_exists, fq, RG, ID in zip(bam["bam_ind_filename"],
+                                                                   bam["bam_ind_exists_and_RG_correct"],
+                                                                   bam["fq"],
+                                                                   bam["raw_RG"],
+                                                                   bam["ID"]):
+                    if ind_bam_exists is False:
+                        fq = {"fq1": fq[0], "fq2": fq[1], "ID": ID, "RG": RG, "SM": bam["SM"]}
+                        align = "{run} {script_dir}/align.py {config_file} \"{fq}\"".format(**locals())
+                        jobid = cf.submit_job(align,
+                                              analysis_type=analysis_type,
+                                              log_name=ID)
+                        dependency_list.append(jobid)
+                # Merge Bams
+                bams_to_merge = bam["bam_ind_filename"]
+                merge_bams = "{run} {script_dir}/merge_bams.py {config_file} \"{bams_to_merge}\"".format(**locals())
+                print pp(bam)
+                jobid = cf.submit_job(merge_bams,
+                                      log_name=bam["SM"],
+                                      analysis_type=analysis_type,
+                                      dependencies=dependency_list,
+                                      dependency_type="afterok")
 
     #=============#
     # SNP Calling #
@@ -272,24 +170,5 @@ if __name__ == '__main__':
             print("Merged File Already Exists")
     elif analysis_type == "test":
         print "GREAT"
-        x = -1
-        print OPTIONS.nodes
-        print get_node()
-        print get_node()
-        print get_node()
-        print get_node()
-        print get_node()
-        print get_node()
-        print get_node()
-        print get_node()
-        print get_node()
-        print get_node()
-        print get_node()
-        print get_node()
 
 
-
-
-
-
-    

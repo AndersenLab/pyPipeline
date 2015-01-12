@@ -4,80 +4,10 @@ import os
 import glob
 from pprint import pprint as pp
 from utils import *
+from constants import *
+from logs import *
 from seq_utils import *
-from datetime import datetime
-
-
-os.chdir("/Users/Dan/Documents/tmp/")
-
-
-class EAV:
-    """
-    Very simple Entity-Attribute-Value Object
-    """
-
-    def __init__(self):
-        self.entity = ""
-        self.sub_entity = ""
-        self.attribute = ""
-        self.sub_attribute = ""
-        self.value = ""
-        self.timestamp = datetime.now()
-        self.comment = ""
-        self.file = None
-
-    def __repr__(self):
-        return "\nEntity:{self.entity}\n\
-                Entity:{self.sub_entity}\n\
-                Attribute:{self.attribute}\n\
-                Sub-Attribute:{self.sub_attribute}\n\
-                Value:{self.value}\n\
-                timestamp:{self.timestamp}\n".format(**locals())
-
-    def save(self):
-        if self.file is None:
-            raise Exception("No Log File Set")
-        if not file_exists(self.file):
-            write_header = True
-        else:
-            write_header = False
-        with(open(self.file, "a")) as f:
-            if write_header is True:
-                f.write("entity\tsub_entity\tattribute\tsub_attribute\tvalue\tcomment\ttimestamp\n")
-            line = '\t'.join([self.entity,
-                              self.sub_entity,
-                              self.attribute,
-                              self.sub_attribute,
-                              str(self.value),
-                              self.comment,
-                              str(self.timestamp)])
-            f.write(line.format(**locals()) + "\n")
-
-class general_log:
-    """
-        Simple log file.
-    """
-    def __init__(self, config):
-        self.log = open(config.config_name + ".log", 'a')
-
-    def add(self, msg, analysis_type):
-        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        log_msg = "{d}\t{a}\t{l}\n".format(d=now, a=analysis_type, l=msg)
-        self.log.write(log_msg)
-
-class command_log:
-    """
-    The Command log is used to log commands that have been run.
-    """
-    def __init__(self, config):
-        self.log = open(config.config_name + ".commands.log", 'a')
-
-    def add(self, command):
-        # Clean up whitespace.
-        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        command = re.sub("[^\S\r\n]+", " ", command).replace("\n ", "\n").strip()
-        log_msg = "{d}\t{comm}\n".format(d=now,comm=command)
-        self.log.write(log_msg)
+from subprocess import Popen, PIPE
 
 
 class config:
@@ -86,9 +16,11 @@ class config:
     """
     def __init__(self, config):
         self.config_filename = config
-        self.config_name = config.replace(".yaml","")
+        self.config_name = config.replace(".yaml", "")
         self.config = yaml.load(open(config, 'r'))
         script_dir = os.path.dirname(os.path.realpath(__file__)).replace("/utils", "")
+
+        self.node_index = 0
 
         # Set up Logs
         self.general_log = general_log(self)
@@ -98,7 +30,7 @@ class config:
         self.reqd_options = ["reference",
                              "fastq_dir",
                              "bam_dir",
-                             "stat_dir",
+                             "log_dir",
                              "sample_file",
                              "chrom_chunk_kb",
                              "cores"]
@@ -123,6 +55,10 @@ class config:
         # Setup command info
         self.cmd = dotdictify(self.config["COMMANDS"])
 
+        # Set up entity-attribute-value
+        self.eav = EAV()
+        self.eav.file = self.config_name + ".eav.txt"
+
         # snp callers
         self.snp_callers = [x for x in self.cmd.snps if x in available_snp_callers]
 
@@ -134,9 +70,68 @@ class config:
         except:
             error("File does not exist")
 
-    def log(self, msg, analysis_type = ""):
+    def log(self, msg, analysis_type=""):
         """ Adds to the log file for a given analysis. """
         self.general_log.add(msg, analysis_type)
+
+    def command(self, command):
+        """ Runs a command in the shell and logs that it was run. """
+
+        out = Popen(command, shell=True, stdout=PIPE, stderr=None)
+        for line in out.stdout:
+            print(line)
+        if out.stderr is not None:
+            raise Exception(out.stderr)
+
+    def get_node():
+        self.node_index += 1
+        return str(self.nodes[node_index % len(self.nodes)])
+
+    def submit_job(self,
+                   command,
+                   analysis_type,
+                   log_name,
+                   dependencies=None,
+                   dependency_type="afterok"):
+        """ Submit a job to the cluster """
+        # Insert dependencies, output_dir, and nodes
+        if LOCAL is False:
+            self.log(command, "sbatch")
+            command = command.split(" ")
+            # Output Dirs
+            log_file = "{self.log_dir}/{analysis_type}.{log_name}.%N.%j".format(**locals())
+            output_dirs = " --output={log_file}.txt  --error={log_file}.err ".format(**locals())
+            # Node
+            if hasattr(self, "nodes"):
+                use_node = "--nodelist={node} ".format(node="node" + get_node())
+                command.insert(1, use_node)
+            # Dependencies
+            if dependencies is not None:
+                if len(dependencies) > 0:
+                    dependencies = ':'.join(dependencies)
+                    depends_on = " --dependency={dep_type}:".format(**locals())
+                    depends_on += dependencies
+                else:
+                    depends_on = ""
+                command.insert(1, depends_on)
+            else:
+                depends_on = ""
+            print command
+            command = ' '.join(command)
+            jobid, err = Popen(command, stdout=PIPE, stderr=PIPE, shell=True).communicate()
+            jobid = jobid.strip().split(" ")[-1]
+            print("Submitted job [{jobid}:{analysis_type}:{log_name}]".format(**locals()))
+            if dependencies is not None:
+                print("Dependencies: {dependencies}".format(dependencies=', '.join(dependencies)))
+
+            if jobid.isdigit() is False:
+                raise Exception("Error submitting %s" % jobid)
+                exit()
+            else:
+                return jobid
+        else:
+            self.log(command, "python")
+            self.command(command)
 
     def get_sample_file(self):
         """
@@ -256,6 +251,7 @@ class sample_file:
                                              "bam_ind_filename": []}
                 self.SM_Group_set[SM]["ID"].append(ID)
                 self.SM_Group_set[SM]["RG"].append(RG)
+                self.SM_Group_set[SM]["SM"] = SM
                 self.SM_Group_set[SM]["RG"] = sorted(self.SM_Group_set[SM]["RG"])
                 self.SM_Group_set[SM]["fq"].append(fq_pair)
                 self.SM_Group_set[SM]["raw_RG"].append(raw_RG)

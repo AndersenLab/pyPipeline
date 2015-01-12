@@ -20,17 +20,6 @@ def msg(text, msg_type = "\033[1m"):
     if msg_type == "error":
         sys.exit(0)
 
-if os.uname()[0] == "Darwin":
-    LOCAL = True
-    xargs = "gxargs"
-    run = "python"
-    output_dirs = ""
-    stream_fq = "gunzip -kfc"
-else:
-    LOCAL = False
-    xargs = "xargs"
-    stream_fq = "zcat"
-
 class dotdictify(dict):
     """
         http://stackoverflow.com/questions/3031219
@@ -62,55 +51,6 @@ class dotdictify(dict):
     __getattr__ = __getitem__
 
 
-class EAV:
-    """
-    Very simple Entity-Attribute-Value Object
-    """
-
-    def __init__(self):
-        self.entity = ""
-        self.sub_entity = ""
-        self.attribute = ""
-        self.sub_attribute = ""
-        self.value = ""
-        self.timestamp = datetime.now()
-        self.comment = ""
-        self.file = None
-
-    def __repr__(self):
-        return "\nEntity:{self.entity}\nEntity:{self.sub_entity}\nAttribute:{self.attribute}\nSub-Attribute:{self.sub_attribute}\nValue:{self.value}\ntimestamp:{self.timestamp}\n".format(**locals())
-
-    def save(self):
-        if self.file is None:
-            raise Exception("No Log File Set")
-        if not file_exists(self.file):
-            write_header = True
-        else:
-            write_header = False
-        with(open(self.file,"a")) as f:
-            if write_header == True:
-                f.write("entity\tsub_entity\tattribute\tsub_attribute\tvalue\tcomment\ttimestamp\n")
-            line = '\t'.join([self.entity, self.sub_entity, self.attribute, self.sub_attribute, str(self.value), self.comment, str(self.timestamp)])
-            f.write(line.format(**locals()) + "\n")
-
-
-def chunk_genome(chunk_size, reference):
-    """ 
-    Parses bwa .ann file to retrieve chromosome sizes
-    for chunking purposes
-    """
-    ann = open(reference + ".ann").read()
-    # Parsing .ann files
-    contigs = [x.split(" ")[1] for x in ann.split("\n")[1:-1:1]][::2]
-    contig_sizes = map(int,[x.split(" ")[1] for x in ann.split("\n")[1:-1:1]][1::2])
-    chunk_size *= 1000
-    for chrom, size in zip(contigs, contig_sizes):
-        for chunk in xrange(1,size, chunk_size):
-            if chunk + chunk_size > size:
-                chunk_end = size
-            else:
-                chunk_end = chunk + chunk_size-1
-            yield "{chrom}:{chunk}-{chunk_end}".format(**locals())
 
 
 def construct_filters(filter_list, soft=True):
@@ -126,60 +66,6 @@ def construct_filters(filter_list, soft=True):
     else:
         return ''
 
-def setup_logger(config):
-    # Set up Logger
-    log = logging.getLogger("pyPipeline")
-    analysis_dir = config.OPTIONS.analysis_dir
-    fh = logging.FileHandler(analysis_dir + "/" + analysis_dir + ".log")
-    # Setup Formatting
-    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-    # Set formats
-    fh.setFormatter(formatter)
-    log.addHandler(fh)
-    if config.DEBUG == True:
-        log.setLevel(logging.DEBUG)
-    else:
-        log.setLevel(logging.INFO)
-    return log
-
-class command_log:
-    def __init__(self, config, job_type):
-        analysis_dir = config.OPTIONS.analysis_dir
-        self.log = open(analysis_dir + "/" + job_type + ".commands.log",'a')
-    def add(self, command):
-        # Clean up whitespace.
-        command = re.sub("[^\S\r\n]+"," ", command).replace("\n ","\n").strip() + "\n"
-        self.log.write(command)
-
-
-def split_read_group(RG):
-    RG_set = []
-    for val in RG:
-        val = sorted([x.split(":") for x in val.split("\t")[1:]])
-        RG_set.append(val)
-    return sorted(RG_set)
-
-def load_config_and_log(config, job_type = None):
-    """ 
-        Loads the configuration file
-            - Inherits default options not specified
-            - Inherits options only for the job type specified.
-    """
-    default = dotdictify(yaml.load(open(script_dir + "/default.config.yaml","r")))
-    config = dotdictify(yaml.load(open(config, 'r')))
-    # Create analysis directory.
-    makedir(config.OPTIONS.analysis_dir)
-    # Override Options
-    for opt,val in default["OPTIONS"].items():
-        if opt not in config["OPTIONS"].keys():
-            config["OPTIONS"][opt] = val
-    general_log = setup_logger(config)
-    c_log = command_log(config, job_type)
-
-    if config.OPTIONS.debug == True:
-        config.OPTIONS.analysis_dir = "DEBUG_" + config.OPTIONS.analysis_dir 
-
-    return config, general_log, c_log
 
 def format_command(command_config):
     """
@@ -218,18 +104,6 @@ def remove_file(file):
         os.remove(file)
     except:
         pass
-
-def command(command, log):
-    """ Run a command on system and log """
-    program = command.split(" ")[0]
-    program_version = version(program)
-    log.add("\n# " + program_version )
-    log.add(command.strip() + "\n")
-    command = Popen(command, shell=True, stdout=PIPE, stderr=None)
-    for line in command.stdout:
-        print(line)
-    if command.stderr is not None:
-        raise Exception(command.stderr)
 
 def which(program):
     """ returns the path to an executable or None if it can't be found
@@ -282,41 +156,6 @@ def common_prefix(strings):
                 break
     return prefix
 
-def get_script_dir():
-    return os.path.dirname(os.path.realpath(__file__)).replace("/utils", "")
-
-def is_defined(val):
-    if val == '' or val == None:
-        return False
-    else:
-        return True
-
-
-def construct_RG_header(ID, opts):  
-    if is_defined(opts["SM"]):
-        SM = "SM:" + opts["SM"] + "\\t"
-    else:
-        SM = ""
-    if is_defined(opts["LB"]):
-        LB = "LB:" + opts["LB"] + "\\t"
-    else:
-        LB = ""
-    if is_defined(opts["PL"]):
-        PL = "PL:" + opts["PL"]
-    else:
-        PL = "PL:ILLUMINA"
-    # Note library is optional; hence it's not explicitely defined.
-    RG_header = "@RG\\tID:{ID}\\t{LB}{SM}{PL}".format(**locals())
-    return RG_header
-
-def get_bam_RG(bam):
-    """
-        Fetches Read Groups from the Header of SAM/BAM files
-    """
-    out, err = Popen(["samtools","view","-H",bam], stdout=PIPE).communicate()
-    RG = [x for x in out.split("\n") if x.startswith("@RG")]
-    return RG
-
 def boolify(s):
     """ http://stackoverflow.com/questions/7019283/automatically-type-cast-parameters-in-python """
     if s == 'True':
@@ -360,8 +199,3 @@ def check_seq_file(filename):
         return file_exists(filename), file_exists(filename + ".csi")
     if filename.endswith(".bam"):
         return file_exists(filename), file_exists(filename + "bai")
-
-# Define Constants
-script_dir = get_script_dir()
-available_snp_callers = ["bcftools", "freebayes"]
-
