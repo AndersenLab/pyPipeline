@@ -5,12 +5,8 @@ Usage:
   pipe.py trim <config>
   pipe.py align <config> [options]
   pipe.py snps (individual|joint) <config> [options]
-<<<<<<< HEAD
   pipe.py transposons <config>
-  pipe.py samplefile <filename/dir>
-=======
   pipe.py samplefile <config>
->>>>>>> FETCH_HEAD
   pipe.py genome [<name>]
   pipe.py test <config> [options]
 
@@ -60,30 +56,23 @@ if __name__ == '__main__':
     # Setup #
     #=======#
 
-<<<<<<< HEAD
     analysis_types = ["trim", "align", "merge", "snps", "indels", "test", "transposons"]
-=======
->>>>>>> FETCH_HEAD
     analysis_type = [x for x in opts if opts[x] == True and x in analysis_types][0]
 
-<<<<<<< HEAD
-    print "{script_dir}/genomes/{OPTIONS.reference}/*fa.gz".format(**locals())
     reference = glob.glob("{script_dir}/genomes/{OPTIONS.reference}/*f*.gz".format(**locals()))[0]
-    print reference
-    sample_file = open(config.OPTIONS.sample_file, 'rU')
 
     #======================#
     # Debug (testing) mode #
     #======================#
+    """
     if OPTIONS.debug == True:
         debug_fq_dir = "{OPTIONS.fastq_dir}/DEBUG_FQ".format(**locals())
         makedir(debug_fq_dir)
         bam_dir = "{OPTIONS.analysis_dir}/debug".format(**locals())
         eav_file = "{OPTIONS.analysis_dir}/{OPTIONS.stat_dir}/DEBUG_eav.txt".format(**locals())
-=======
+    """
     cf.log("#=== Beginning Analysis ===#")
     cf.log("Running " + opts["<config>"])
->>>>>>> FETCH_HEAD
 
     #======#
     # Trim #
@@ -124,7 +113,6 @@ if __name__ == '__main__':
                 # Merge Bams
                 bams_to_merge = bam["bam_ind_filename"]
                 merge_bams = "{run} {script_dir}/merge_bams.py {config_file} \"{bams_to_merge}\"".format(**locals())
-                print pp(bam)
                 jobid = cf.submit_job(merge_bams,
                                       log_name=bam["SM"],
                                       analysis_type=analysis_type,
@@ -194,8 +182,6 @@ if __name__ == '__main__':
         else:
             print("Merged File Already Exists")
     elif analysis_type == "test":
-        print "GREAT"
-<<<<<<< HEAD
         r = "{run} {script_dir}/call_snps_individual.py {config_file} '[1,2,3]'".format(**locals())
         os.system(r)
     elif analysis_type == "transposons":
@@ -213,10 +199,4 @@ if __name__ == '__main__':
             print call_transposons
             jobid = submit_job(call_transposons)
             #dependency_list.append(jobid)
-
-
-
-=======
->>>>>>> FETCH_HEAD
-
 
