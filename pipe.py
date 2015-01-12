@@ -5,6 +5,7 @@ Usage:
   pipe.py trim <config>
   pipe.py align <config> [options]
   pipe.py snps (individual|joint) <config> [options]
+  pipe.py transposons <config>
   pipe.py samplefile <filename/dir>
   pipe.py genome [<name>]
   pipe.py test <config> [options]
@@ -105,7 +106,7 @@ if __name__ == '__main__':
     # Setup #
     #=======#
 
-    analysis_types = ["trim", "align", "merge", "snps", "indels", "test"]
+    analysis_types = ["trim", "align", "merge", "snps", "indels", "test", "transposons"]
     analysis_type = [x for x in opts if opts[x] == True and x in analysis_types][0]
     # Load Configuration
     config, log, c_log = load_config_and_log(config_file, analysis_type)
@@ -136,7 +137,9 @@ if __name__ == '__main__':
     log.info("#=== Beginning Analysis ===#")
     log.info("Running " + opts["<config>"])
 
-    reference = glob.glob("{script_dir}/genomes/{OPTIONS.reference}/*fa.gz".format(**locals()))[0]
+    print "{script_dir}/genomes/{OPTIONS.reference}/*fa.gz".format(**locals())
+    reference = glob.glob("{script_dir}/genomes/{OPTIONS.reference}/*f*.gz".format(**locals()))[0]
+    print reference
     sample_file = open(config.OPTIONS.sample_file, 'rU')
 
     #======================#
@@ -340,14 +343,25 @@ if __name__ == '__main__':
             submit_job(merge_snps, dependency_list)
         else:
             print("Merged File Already Exists")
-
-    else:
-        exit()
-    if analysis_type == "test":
+    elif analysis_type == "test":
         print "GREAT"
         r = "{run} {script_dir}/call_snps_individual.py {config_file} '[1,2,3]'".format(**locals())
         os.system(r)
-        
+    elif analysis_type == "transposons":
+        bam_set = []
+        for fq in csv.DictReader(sample_file, delimiter='\t', quoting=csv.QUOTE_NONE):
+            if fq["RUN"] != "NO":
+                SM = fq["SM"]
+                bam_set.append(SM)
+                bam_file = "{bam_dir}/{SM}.bam".format(**locals())
+        bam_set = set(bam_set)
+        # Has vcf been called for given snp caller?
+        dependency_list = []
+        for SM in bam_set:
+            call_transposons = """{run} {script_dir}/call_transposons.py {config_file} \"{SM}.bam\"""".format(**locals())
+            print call_transposons
+            jobid = submit_job(call_transposons)
+            #dependency_list.append(jobid)
 
 
 
