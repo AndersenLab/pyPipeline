@@ -4,15 +4,14 @@
 #SBATCH --cpus-per-task=8
 #SBATCH --nodes=1
 #SBATCH --mem=16384
-import sys, os
+import sys
+import os
 from ast import literal_eval
 from utils import *
 from utils.configuration import *
 from utils.seq_utils import *
 import tempfile
-import glob
 from pprint import pprint as pp
-import csv
 
 #=========#
 # Command #
