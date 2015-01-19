@@ -52,17 +52,20 @@ class config:
             if k.endswith("dir") and k != "fastq_dir":
                 makedir(i)
 
+
         # Set Commands as base directories
         for analysis, values in self.config["COMMANDS"].items():
             setattr(self, analysis, dotdictify(values))
             for command, params in values.items():
                 setattr(self, command, dotdictify(params))
                 if command in tools:
-                    print command, params, self.format_command_options(params)
+                    # Generate command options
                     opts = self.format_command_options(params)
                     analysis_attr = getattr(self, analysis)
-                    cur_command = getattr(self, command)
-                    setattr(cur_command, command + "_options", opts)
+                    print command, opts, "OPTIONS"
+                    setattr(analysis_attr, command + "_options", opts)
+                    setattr(self, analysis, analysis_attr)
+
 
         # Setup command info
         self.cmd = dotdictify(self.config["COMMANDS"])
@@ -192,7 +195,7 @@ class config:
                     chunk_end = size
                 else:
                     chunk_end = chunk + chunk_size-1
-                chunk_set.append("{chrom}:{chunk}-{chunk_end}".format(**locals()))
+                chunk_set.append("{chrom}:{chunk}-{chunk_end}".format(**locals()).strip())
         return chunk_set
 
 

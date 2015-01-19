@@ -19,14 +19,14 @@ from pprint import pprint as pp
 
 truncate_fq = """{stream_fq} {fq_loc} | head -n {cf.debug_fq_number_of_sequences} | gzip > {cf.fastq_dir}/DEBUG_FQ/{fq_filename}"""
 
-bwa = """bwa mem -t {cf.cores} -R '{RG_header}' {bwa_options} {reference} {cf.fastq_dir}/{FQ1} {cf.fastq_dir}/{FQ2} | samtools view -@ {cf.cores} -bhu - > {bam_dir}/{ID}.unsorted.bam
-         samtools sort -@ {cf.cores} -O bam -T {bam_dir}/{tmpname} {bam_dir}/{ID}.unsorted.bam > {bam_dir}/{ID}.sorted.bam"""
+bwa = """bwa mem -t {cf.cores} -R '{job.RG}' {cf.align.bwa_options} {cf.reference_file} {fq1_filename} {fq2_filename} | samtools view -@ {cf.cores} -bhu - > {cf.bam_dir}/{job.ID}.unsorted.bam
+         samtools sort -@ {cf.cores} -O bam -T {cf.bam_dir}/{tmpname} {cf.bam_dir}/{job.ID}.unsorted.bam > {cf.bam_dir}/{job.ID}.sorted.bam"""
 
 mark_dups = """
             java -jar {script_dir}/tools/picard.jar MarkDuplicates \
-            I={bam_dir}/{ID}.sorted.bam \
-            O={bam_dir}/{ID}.bam \
-            M={bam_dir}/{ID}.duplicate_report.txt \
+            I={cf.bam_dir}/{job.ID}.sorted.bam \
+            O={cf.bam_dir}/{job.ID}.bam \
+            M={cf.bam_dir}/{job.ID}.duplicate_report.txt \
             VALIDATION_STRINGENCY=SILENT REMOVE_DUPLICATES=true
             """
 
@@ -36,7 +36,6 @@ mark_dups = """
 
 job = dotdictify(literal_eval(sys.argv[2]))
 cf = config(sys.argv[1])
-sf = cf.get_sample_file()
 
 #=============================#
 # Setup Debug Mode if desired #
@@ -94,29 +93,27 @@ for fq in ["FQ1", "FQ2"]:
         eav.sub_attribute = "Read Group"
         eav.value = job["@RG"]
 
-
 #=====#
 # BWA #
 #=====#
 
-if "bwa" in align:
-    bwa_options = format_command(align["bwa"])
-    tmpname = os.path.split(tempfile.mktemp(prefix=ID))[1]
-    fq1_filename = os.path.split(job["fq1"])
-    fq2_filename = os.path.split(job["fq2"])
-
+if "bwa" in cf.align:
+    tmpname = os.path.split(tempfile.mktemp(prefix=job.ID))[1]
+    fq1_filename = job["fq1"]
+    fq2_filename = job["fq2"]
+    print job
     # Create Directories
-    makedir(bam_dir)
+    makedir(cf.bam_dir)
     completed_bam = "{cf.bam_dir}/{job.ID}.bam".format(**locals())
     unsorted_bam = "{cf.bam_dir}/{job.ID}.unsorted.bam".format(**locals())
     if not file_exists(completed_bam) and not file_exists(unsorted_bam):
         comm = bwa.format(**locals())
-        command(comm, c_log)
-        if align.alignment_options.remove_temp == True:
+        cf.command(comm)
+        if cf.align.alignment_options.remove_temp == True:
             file_to_delete = "rm {unsorted_bam}".format(**locals())
-            command(file_to_delete, c_log)
+            cf.command(file_to_delete)
     else:
-        log.info("SKIPPING: " + completed_bam + " exists; no alignment.")
+        cf.log("SKIPPING: " + completed_bam + " exists; no alignment.")
 
 
 #=================#
@@ -137,61 +134,62 @@ def picard_dup_parser(dup_file, bam):
     return (aggregate_values, histogram_values)
 
 
-if "picard" in align:
-    if "markduplicates" in align.picard:
-        if align.picard.markduplicates == True:
-            dup_report = "{bam_dir}/{ID}.duplicate_report.txt".format(**locals())
-            if not file_exists(dup_report) or not file_exists(completed_bam):
-                comm = mark_dups.format(**locals())
-                log.info("Removing Duplicates: %s.bam" % ID)
-                c_log.add(comm)
-                command(comm, c_log)
-                # Remove Sort tempfile
-                if align.alignment_options.remove_temp == True:
-                    file_to_delete = "rm {bam_dir}/{ID}.sorted.bam".format(**locals())
-                    command(file_to_delete, c_log)
-                # Process Duplicate Report
-                stat_file = "{stat_dir}/PICARD_Aggregate_{cf.bam_dir}.txt".format(**locals())      # Leave cf.bam_dir
-                histogram_file = "{stat_dir}/PICARD_Histogram_{cf.bam_dir}.txt".format(**locals()) # Leave cf.bam_dir
-                # Aggregate Statistics from Picard dedup - seems error prone currently...
-                try:
-                    aggregate_values, histogram_values = picard_dup_parser(dup_report, ID + ".bam")
-                    if not file_exists(stat_file):
-                        picard_stat_file = open(stat_file, 'w+')
-                        picard_header = [ 'BAM',
-                                          'LIBRARY',
-                                          'UNPAIRED_READS_EXAMINED',
-                                          'READ_PAIRS_EXAMINED',
-                                          'UNMAPPED_READS',
-                                          'ESTIMATED_LIBRARY_SIZE',
-                                          'READ_PAIR_OPTICAL_DUPLICATES',
-                                          'READ_PAIRS_EXAMINED', 'UNPAIRED_READS_EXAMINED',
-                                          'PERCENT_DUPLICATION\n']
-                        picard_stat_file.write("\t".join(picard_header))
-                        picard_stat_file.close()
-                    with open(stat_file, "a") as stat:
-                        stat.write(aggregate_values)
-                    if not file_exists(histogram_file):
-                        picard_histogram_file = open(histogram_file,'w')
-                        picard_histogram_file.write("BAM\tBIN\tVALUE\n")
-                        picard_histogram_file.close()
-                    with open(histogram_file, 'a') as hist:
-                        hist.write(histogram_values)
-                except:
-                    pass
-            else:
-                log.info("SKIPPING: " + dup_report + " exists; Skipping.")
+if cf.align.picard.markduplicates is True:
+    dup_report = "{cf.bam_dir}/{job.ID}.duplicate_report.txt".format(**locals())
+    if not file_exists(dup_report) or not file_exists(completed_bam):
+        comm = mark_dups.format(**locals())
+        cf.log("Removing Duplicates: %s.bam" % job.ID)
+        cf.command(comm)
+        # Remove Sort tempfile
+        if cf.align.alignment_options.remove_temp is True:
+            file_to_delete = "rm {cf.bam_dir}/{job.ID}.sorted.bam".format(**locals())
+            cf.command(file_to_delete)
+        # Process Duplicate Report
+        stat_file = "PICARD_Aggregate_{cf.bam_dir}.txt".format(**locals())      # Leave cf.bam_dir
+        histogram_file = "PICARD_Histogram_{cf.bam_dir}.txt".format(**locals()) # Leave cf.bam_dir
+        # Aggregate Statistics from Picard dedup - seems error prone currently...
+        try:
+            aggregate_values, histogram_values = picard_dup_parser(dup_report, ID + ".bam")
+            if not file_exists(stat_file):
+                picard_stat_file = open(stat_file, 'w+')
+                picard_header = [ 'BAM',
+                                  'LIBRARY',
+                                  'UNPAIRED_READS_EXAMINED',
+                                  'READ_PAIRS_EXAMINED',
+                                  'UNMAPPED_READS',
+                                  'ESTIMATED_LIBRARY_SIZE',
+                                  'READ_PAIR_OPTICAL_DUPLICATES',
+                                  'READ_PAIRS_EXAMINED', 'UNPAIRED_READS_EXAMINED',
+                                  'PERCENT_DUPLICATION\n']
+                picard_stat_file.write("\t".join(picard_header))
+                picard_stat_file.close()
+            with open(stat_file, "a") as stat:
+                stat.write(aggregate_values)
+            if not file_exists(histogram_file):
+                picard_histogram_file = open(histogram_file,'w')
+                picard_histogram_file.write("BAM\tBIN\tVALUE\n")
+                picard_histogram_file.close()
+            with open(histogram_file, 'a') as hist:
+                hist.write(histogram_values)
+        except:
+            pass
+    else:
+        cf.log("SKIPPING: " + dup_report + " exists; Skipping.")
 else:
     # If duplicates are not being marked, move files
-    move_file = """mv {bam_dir}/{ID}.sorted.bam {bam_dir}/{ID}.bam""".format(**locals())
-    command(move_file, c_log)
+    move_file = """mv {cf.bam_dir}/{job.ID}.sorted.bam {cf.bam_dir}/{job.ID}.bam""".format(**locals())
+    cf.command(move_file)
 
 #=============================#
 # Save BAM Stats (Individual) #
 #=============================#
 
-bam_individual = "{bam_dir}/{ID}.bam".format(**locals())
-eav.sub_entity = ID + ".bam"
+bam_individual = "{cf.bam_dir}/{job.ID}.bam".format(**locals())
+
+# Index
+cf.command("samtools index {bam_individual}".format(**locals()))
+
+eav.sub_entity = job.ID + ".bam"
 bam_individual_cksum = cksum(bam_individual)
 
 if bam_individual_cksum not in cksum_set:

@@ -12,19 +12,21 @@ analysis_types = ["trim",
                   "test"]
 
 tools = ["bwa",
+         "samtools",
          "freebayes",
          "bcftools",
          "picard"]
 
 if os.uname()[0] == "Darwin":
     LOCAL = True
+    echo = "gecho"
     xargs = "gxargs"
     run = "python"
     output_dirs = ""
     stream_fq = "gunzip -kfc"
 else:
     run = "sbatch"
+    echo = "echo"
     LOCAL = False
     xargs = "xargs"
     stream_fq = "zcat"
-
