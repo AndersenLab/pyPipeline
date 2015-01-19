@@ -57,7 +57,7 @@ class config:
         for analysis, values in self.config["COMMANDS"].items():
             setattr(self, analysis, dotdictify(values))
             for command, params in values.items():
-                setattr(self, command, dotdictify(params))
+                #setattr(self, command, dotdictify(params))
                 if command in tools:
                     # Generate command options
                     opts = self.format_command_options(params)

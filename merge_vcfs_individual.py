@@ -4,11 +4,11 @@
 #SBATCH --cpus-per-task=8
 #SBATCH --nodes=1
 #SBATCH --mem=8192
-import sys, os
-from ast import literal_eval
+import sys
+import os
 from utils import *
+from utils.configuration import *
 from commands import *
-import tempfile
 import glob
 
 
@@ -16,11 +16,9 @@ import glob
 # Load Configuration #
 #====================#
 
-config, log, c_log = load_config_and_log(sys.argv[1], "align")
-OPTIONS = config.OPTIONS
-COMMANDS = config.COMMANDS
-vcf_dir = "{OPTIONS.analysis_dir}/{OPTIONS.vcf_dir}".format(**locals())
-eav_file = "{OPTIONS.analysis_dir}/{OPTIONS.stat_dir}/eav.txt".format(**locals())
+cf = config(sys.argv[1])
+sf = cf.get_sample_file()
+eav = cf.eav
 
 #=========#
 # Command #
@@ -35,11 +33,10 @@ merge_vcfs = """bcftools merge --apply-filters PASS -O z {vcf_set} > {vcf_dir}/{
 # Merge SNP VCF Files #
 #=====================#
 
-snp_callers = COMMANDS.snps
-snp_callers = [x for x in snp_callers if x in available_snp_callers]
-
 for merge_type in ["individual", "union"]:
     # If a union variant file already exists, skip individual merging
+    print dir(cf)
+    print cf.snps
     for caller in snp_callers:
         union_variant_file = "{OPTIONS.analysis_dir}/{caller}.{OPTIONS.union_variants}.txt".format(**locals())
         if (not file_exists(union_variant_file) and merge_type == "individual") or merge_type == "union":
@@ -59,4 +56,4 @@ for merge_type in ["individual", "union"]:
             glob.glob("{vcf_dir}/*{caller}.individual.vcf.gz*".format(**locals()))
             for i in glob.glob("{vcf_dir}/*{caller}.individual.vcf.gz*".format(**locals())):
                 comm = "rm %s" % i
-                command(comm, c_log)
+                cf.command(comm)

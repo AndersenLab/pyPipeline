@@ -50,7 +50,6 @@ if 'bcftools' in cf.snps:
         chrom_chunks = cf.chunk_genome()
         chrom_chunks_joined = ','.join(chrom_chunks)
         bcftools = """{echo} -n {chrom_chunks_joined} | {xargs}  -t -d ',' -P 24 -I {{}} bash -c '{xarg_command}' """.format(**locals()).replace("__region__","{}")
-        print bcftools
         cf.command(bcftools)
 
         #=========#
@@ -73,5 +72,5 @@ if 'bcftools' in cf.snps:
         cf.command(bcftools_concat)
 
         # Remove temporary files
-        rm_comm = """rm {cf.vcf_dir}/{bam.SM}.TMP.*.bcftools.{vcf_form}.vcf.gz*""".format(**locals())
+        rm_comm = """rm {cf.vcf_dir}/{bam.SM}.TMP.*.bcftools.{vcf_form}.vcf.gz""".format(**locals())
         cf.command(rm_comm)

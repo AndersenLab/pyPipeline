@@ -137,22 +137,22 @@ if __name__ == '__main__':
                         msg("Bam File or index does not exist: %s" % bam["bam_merged_filename"], "error")
                     else:
                         dependency_list = []
-                        print pp(bam)
-                        print bam.SM
                         complete_individual = "{cf.vcf_dir}/{bam.SM}.{caller}.individual.vcf.gz".format(**locals())
                         if not all(check_seq_file(complete_individual)):
                             call_snps = """{run} {output_dirs} {script_dir}/call_snps_individual.py {config_file} \"{bam}\"""".format(**locals())
-                            print call_snps
                             jobid = cf.submit_job(call_snps,
                                                   log_name=bam.SM,
                                                   analysis_type=analysis_type,
-                                                  dependencies=dependency_list,
                                                   dependency_type="afterok")
                             dependency_list.append(jobid)
         # Merge individual bams
-        if COMMANDS.snps.snp_options.merge_individual_vcfs == True:
+        if cf.snps.snp_options.merge_individual_vcfs == True:
             merge_snps = """{run} {script_dir}/merge_vcfs_individual.py {config_file}""".format(**locals())
-            submit_job(merge_snps, dependency_list)
+            cf.submit_job(merge_snps,
+                      log_name=bam.SM,
+                      analysis_type=analysis_type,
+                      dependencies=dependency_list,
+                      dependency_type="afterok")
 
     elif analysis_type == "snps" and opts["joint"] == True:
         #
@@ -179,6 +179,8 @@ if __name__ == '__main__':
     elif analysis_type == "test":
         r = "{run} {script_dir}/call_snps_individual.py {config_file} '[1,2,3]'".format(**locals())
         os.system(r)
+
+    
     elif analysis_type == "transposons":
         bam_set = []
         for fq in csv.DictReader(sample_file, delimiter='\t', quoting=csv.QUOTE_NONE):
