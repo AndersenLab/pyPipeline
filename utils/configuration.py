@@ -52,6 +52,18 @@ class config:
             if k.endswith("dir") and k != "fastq_dir":
                 makedir(i)
 
+        # Set Commands as base directories
+        for analysis, values in self.config["COMMANDS"].items():
+            setattr(self, analysis, dotdictify(values))
+            for command, params in values.items():
+                setattr(self, command, dotdictify(params))
+                if command in tools:
+                    print command, params, self.format_command_options(params)
+                    opts = self.format_command_options(params)
+                    analysis_attr = getattr(self, analysis)
+                    cur_command = getattr(self, command)
+                    setattr(cur_command, command + "_options", opts)
+
         # Setup command info
         self.cmd = dotdictify(self.config["COMMANDS"])
 
@@ -61,6 +73,11 @@ class config:
 
         # snp callers
         self.snp_callers = [x for x in self.cmd.snps if x in available_snp_callers]
+
+        # Setup union variant sets
+        self.union_variants = dotdictify()
+        for caller in self.snp_callers:
+            self.union_variants[caller] = "{self.config_name}.{caller}.union_variants.txt".format(**locals())
 
         # Setup Reference Here
         ref_dir = "{script_dir}/genomes/{self.reference}/*f*.gz".format(**locals())
@@ -82,6 +99,25 @@ class config:
             print(line)
         if out.stderr is not None:
             raise Exception(out.stderr)
+
+    def format_command_options(self, command_config):
+        """
+            Performs standard formatting of commands being run.
+        """
+        opts = ""
+        if command_config is not None:
+            for k, v in command_config.items():
+                # Use '__' for custom options
+                if k.startswith("__"):
+                    pass
+                # Use '_' to designate flags.
+                elif k.startswith("_"):
+                    opts += " %s " % v
+                else:
+                    opts += "%s %s " % (k, v)
+            return opts
+        else:
+            return ""
 
     def get_node():
         self.node_index += 1
@@ -185,7 +221,7 @@ class sample_file:
         # Define Sets
         self.fastq_set = []
         self.ID_set = []        # Used with Individual Bam Set.
-        self.SM_Group_set = {}  # Tracks bams (by ID) belonging to a sample.
+        self.SM_Group_set = dotdictify()  # Tracks bams (by ID) belonging to a sample.
         self.fq_set = []
 
         with self.sample_file as f:
@@ -197,6 +233,7 @@ class sample_file:
 
                 # Track IDs
                 ID = row["ID"]
+                SM = row["SM"]
                 self.ID_set.append(ID)
 
                 # set fq names.
@@ -241,8 +278,8 @@ class sample_file:
                 row["bam_ind_filename"] = bam_ind_filename
                 row["bam_merged_filename"] = bam_merged_filename
 
+
                 # Group IDs and Samples by Read Group
-                SM = row["SM"]
                 if SM not in self.SM_Group_set:
                     self.SM_Group_set[SM] = {"ID": [],
                                              "RG": [],
@@ -257,6 +294,14 @@ class sample_file:
                 self.SM_Group_set[SM]["raw_RG"].append(raw_RG)
                 self.SM_Group_set[SM]["bam_ind_filename"].append(bam_ind_filename)
                 self.SM_Group_set[SM]["bam_merged_filename"] = bam_merged_filename
+
+                # Add vcf files
+                self.SM_Group_set[SM]["vcf_files"] = {}
+                for caller in config.snp_callers:
+                    for call_type in ["individual", "union", "joint"]:
+                        vcf_ind = "{config.vcf_dir}/{SM}.{caller}.{call_type}.vcf.gz".format(**locals())
+                        self.SM_Group_set[SM]["vcf_files"][caller + "_" + call_type] = vcf_ind
+
 
                 # Remove keys incorporated into RG
                 del row["LB"]
@@ -305,16 +350,17 @@ class sample_file:
             which reflects
         """
         for bam in self.SM_Group_set.values():
+            print check_seq_file(bam["bam_merged_filename"])
             bam["bam_merged_exists_and_RG_correct"] = False
+            bam["bam_ind_exists_and_RG_correct"] = []
             if all(check_seq_file(bam["bam_merged_filename"])):
-                if bam["RG"] == bam(bam["bam_merged_filename"]).RG:
+                if bam["RG"] == bamfile(bam["bam_merged_filename"]).RG:
                     bam["bam_merged_exists_and_RG_correct"] = True
-            else:
                 bam["bam_ind_exists_and_RG_correct"] = []
-                for ind_bam in bam["bam_ind_filename"]:
-                    if all(check_seq_file(ind_bam)):
-                        if bam(bam_ind).RG[0] in bam["RG"]:
-                            bam["bam_ind_exists_and_RG_correct"].append(True)
-                    else:
-                        bam["bam_ind_exists_and_RG_correct"].append(False)
-            yield bam
+            for ind_bam in bam["bam_ind_filename"]:
+                if all(check_seq_file(ind_bam)):
+                    if bamfile(ind_bam).RG[0] in bam["RG"]:
+                        bam["bam_ind_exists_and_RG_correct"].append(True)
+                else:
+                    bam["bam_ind_exists_and_RG_correct"].append(False)
+            yield dotdictify(bam)

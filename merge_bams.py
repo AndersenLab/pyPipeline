@@ -8,11 +8,11 @@ import sys, os
 from ast import literal_eval
 from utils import *
 from utils.seq_utils import *
+from utils.configuration import *
 from commands import *
 import tempfile
 import glob
-import operator
-
+from pprint import pprint as pp
 # ======= #
 # Command #
 # ======= #
@@ -23,52 +23,47 @@ merge_bams = """samtools merge {merge_options} {bam_dir}/{merged_bam_name} {bam_
 # Load Configuration #
 #====================#
 
-SM, SM_Bams = literal_eval(sys.argv[2])
-config, log, c_log = load_config_and_log(sys.argv[1], "align")
-OPTIONS = config.OPTIONS
-COMMANDS = config.COMMANDS
-align = COMMANDS.align # Pulls out alignment types.
+job = literal_eval(sys.argv[2])
+SM = job["SM"]
+SM_Bams = job["bam_ind_filename"]
+cf = config(sys.argv[1])
+eav = cf.eav
 
-bam_dir = "{OPTIONS.analysis_dir}/{OPTIONS.bam_dir}".format(**locals())
-eav_file = "{OPTIONS.analysis_dir}/{OPTIONS.stat_dir}/eav.txt".format(**locals())
-stat_dir = "{OPTIONS.analysis_dir}/{OPTIONS.stat_dir}".format(**locals())
-eav = EAV()
-eav.file = eav_file
+merged_bam_name = cf.bam_dir + "/" + SM + ".bam"
+
 
 #================#
 # Samtools Merge #
 #================#
 
-bam_dir = "{OPTIONS.analysis_dir}/{OPTIONS.bam_dir}".format(**locals())
+bam_dir = "{cf.bam_dir}".format(**locals())
+move_file = False
+
 
 if len(SM_Bams) > 1:
-    merge_options = format_command(align["merge"])
-    merged_bam_name = SM + ".bam"
-    SM_Bam_set = " ".join([bam_dir + "/" + x for x in SM_Bams])
-    merge_bams = """samtools merge -f {merge_options} {bam_dir}/{merged_bam_name} {SM_Bam_set}""".format(**locals())
-    command(merge_bams, c_log)
+    SM_Bam_set = " ".join(SM_Bams)
+    merge_bams = """samtools merge -f {merged_bam_name} {SM_Bam_set}""".format(**locals())
+    print merge_bams
+    cf.command(merge_bams)
     # Index
-    command("samtools index {bam_dir}/{SM}.bam".format(**locals()), c_log)
+    cf.command("samtools index {merged_bam_name}".format(**locals()))
 else:
     # Move single_sequence bam to merged name.
     ID = SM_Bams[0]
-    move_file = """mv {bam_dir}/{ID} {bam_dir}/{SM}.bam;
-                   mv {bam_dir}/{ID}.bai {bam_dir}/{SM}.bam.bai""".format(**locals())
-    command(move_file, c_log)
-
-
-
+    move_file = """mv {ID} {merged_bam_name};
+                   mv {ID}.bai {merged_bam_name}.bai""".format(**locals())
+    cf.command(move_file)
+    dup_report = ID.replace(".bam",".duplicate_report.txt")
+    cf.command("rm {dup_report}".format(**locals()))
 
 #========================#
 # Remove temp files here #
 #========================#
-
-if COMMANDS.align.alignment_options.remove_temp == True:
-    print SM_Bams
-    for bam in SM_Bams:
-        command("rm {bam_dir}/{bam}".format(**locals()), c_log)
-        dup_report = bam.replace(".bam",".duplicate_report.txt")
-        command("rm {bam_dir}/{dup_report}".format(**locals()), c_log)
+if cf.align.alignment_options.remove_temp is True and move_file is False:
+    for bam_ind in SM_Bams:
+        cf.command("rm {bam_ind} && rm {bam_ind}.bai".format(**locals()))
+        dup_report = bam_ind.replace(".bam",".duplicate_report.txt")
+        cf.command("rm {dup_report}".format(**locals()))
 
 #=======================#
 # Collect Stats for BAM #
@@ -76,23 +71,22 @@ if COMMANDS.align.alignment_options.remove_temp == True:
 
 cksum_set = []
 try:
-    cksum_set = Popen("grep 'cksum' {eav_file} | grep 'BAM Statistics - Merged' | cut -f 5".format(**locals()), stdout=PIPE, shell=True).communicate()[0].strip().split("\n")
+    cksum_set = Popen("grep 'cksum' {cf.eav_file} | grep 'BAM Statistics - Merged' | cut -f 5".format(**locals()), stdout=PIPE, shell=True).communicate()[0].strip().split("\n")
 except:
     pass
 
-bam_merged = "{bam_dir}/{SM}.bam".format(**locals())
 eav.entity = SM
 eav.sub_entity = SM + ".bam"
 eav.attribute = "BAM Statistics - Merged"
-bam_merged_cksum = cksum(bam_merged)
+bam_merged_cksum = cksum(merged_bam_name)
 
 if bam_merged_cksum not in cksum_set:
     # Save coverage info
-    for contig, k,v in coverage(bam_merged):
+    for contig, k,v in coverage(merged_bam_name):
         eav.sub_attribute = contig + " (" + k + ")"
         eav.value = v
         eav.save()
-    for k,v in samtools_stats(bam_merged).items():
+    for k,v in samtools_stats(merged_bam_name).items():
         eav.sub_attribute = k
         eav.value = v
         eav.save()

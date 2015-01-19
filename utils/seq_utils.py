@@ -1,13 +1,10 @@
 #!/usr/bin/python
-
-import gzip, re
+import gzip
+import re
 from subprocess import Popen, PIPE
 from itertools import groupby as g
 from utils import *
-import hashlib
-import sys, os
-import csv
-import tempfile
+import os
 
 
 class bamfile:
@@ -28,15 +25,12 @@ class bamfile:
             header = out.strip().split("\n")
             header_set = {}
             for tag, val in [x.strip('@').split("\t", 1) for x in header]:
-                print tag
                 if tag not in header_set:
                     header_set[tag] = []
                 val = dict([tuple(x.split(':', 1)) for x in val.split('\t')])
                 header_set[tag] += [val]
             header_set[tag] = sorted(header_set[tag])
             return header_set
-
-
 
 
 def cksum(filename):

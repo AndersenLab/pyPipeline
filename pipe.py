@@ -89,6 +89,7 @@ if __name__ == '__main__':
         for bam in sf.check_bams():
             # Check merged bam
             dependency_list = []
+            print pp(bam)
             if bam["bam_merged_exists_and_RG_correct"] is False:
                 # Remove merged bam if it exists (RG is wrong)
                 if file_exists(bam["bam_merged_filename"]):
@@ -108,11 +109,12 @@ if __name__ == '__main__':
                                               analysis_type=analysis_type,
                                               log_name=ID)
                         dependency_list.append(jobid)
+                    else:
+                        print("IND")
                 # Merge Bams
-                bams_to_merge = bam["bam_ind_filename"]
-                merge_bams = "{run} {script_dir}/merge_bams.py {config_file} \"{bams_to_merge}\"".format(**locals())
+                merge_bams = "{run} {script_dir}/merge_bams.py {config_file} \"{bam}\"".format(**locals())
                 jobid = cf.submit_job(merge_bams,
-                                      log_name=bam["SM"],
+                                      log_name=bam.SM,
                                       analysis_type=analysis_type,
                                       dependencies=dependency_list,
                                       dependency_type="afterok")
@@ -124,34 +126,29 @@ if __name__ == '__main__':
         #
         # Individual - Needs to be run twice to generate union output
         #
-
         # Get list of bams
-        log.info("Performing Variant Calling")
-
+        cf.log("Performing Variant Calling")
         # Construct Sample Set
-        bam_set = []
-        for row in csv.DictReader(sample_file, delimiter='\t', quoting=csv.QUOTE_NONE):
-            SM = row["SM"]
-            bam_set.append(SM)
-            bam_file = "{bam_dir}/{SM}.bam".format(**locals())
-            if (not file_exists(bam_file) or file_exists(bam_file + ".csi")) and OPTIONS.debug == False:
-                raise Exception("Bam File or index does not exist: %s" % bam_file)
-        
-        bam_set = set(bam_set)
-        # Has vcf been called for given snp caller?
-        dependency_list = []
-        for SM in bam_set:
-            for caller in snp_callers:
-                union_vcf_file = "{vcf_dir}/{SM}.{caller}.union.vcf.gz".format(**locals())
-                union_vcf_index_file = union_vcf_file + ".csi"
-                variant_files = [union_vcf_file, union_vcf_index_file]
-                union_variant_file = "{OPTIONS.analysis_dir}/{caller}.{OPTIONS.union_variants}.txt".format(**locals())
-                complete_individual = "{vcf_dir}/{SM}.bcftools.individual.vcf.gz".format(**locals())
-                individual_vcfs_check = (not file_exists(complete_individual) and COMMANDS.snps.snp_options.remove_temp == False)
-                if not all(map(file_exists, variant_files )) or not file_exists(union_variant_file) or individual_vcfs_check:
-                    call_snps = """{run} {output_dirs} {script_dir}/call_snps_individual.py {config_file} \"{SM}.bam\"""".format(**locals())
-                    jobid = submit_job(call_snps)
-                    dependency_list.append(jobid)
+        for caller in cf.snp_callers:
+            union_vcf_file = "{cf.vcf_dir}/{cf.config_name}.{caller}.union.vcf.gz".format(**locals())
+            if not all(check_seq_file(union_vcf_file)):
+                for bam in sf.check_bams():
+                    if bam["bam_merged_exists_and_RG_correct"] is False:
+                        msg("Bam File or index does not exist: %s" % bam["bam_merged_filename"], "error")
+                    else:
+                        dependency_list = []
+                        print pp(bam)
+                        print bam.SM
+                        complete_individual = "{cf.vcf_dir}/{bam.SM}.{caller}.individual.vcf.gz".format(**locals())
+                        if not all(check_seq_file(complete_individual)):
+                            call_snps = """{run} {output_dirs} {script_dir}/call_snps_individual.py {config_file} \"{bam}\"""".format(**locals())
+                            print call_snps
+                            jobid = cf.submit_job(call_snps,
+                                                  log_name=bam.SM,
+                                                  analysis_type=analysis_type,
+                                                  dependencies=dependency_list,
+                                                  dependency_type="afterok")
+                            dependency_list.append(jobid)
         # Merge individual bams
         if COMMANDS.snps.snp_options.merge_individual_vcfs == True:
             merge_snps = """{run} {script_dir}/merge_vcfs_individual.py {config_file}""".format(**locals())

@@ -11,6 +11,11 @@ analysis_types = ["trim",
                   "transposons",
                   "test"]
 
+tools = ["bwa",
+         "freebayes",
+         "bcftools",
+         "picard"]
+
 if os.uname()[0] == "Darwin":
     LOCAL = True
     xargs = "gxargs"
