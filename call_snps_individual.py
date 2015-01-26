@@ -24,9 +24,8 @@ cf = config(sys.argv[1])
 # BCFTools #
 #==========#
 if 'bcftools' in cf.snps:
-    print bam.vcf_files, "BCF FILES"
     # Test to see if a union set of variants has been constructed
-    call_individual = all(check_seq_file(bam.vcf_files.bcftools_individual))
+    call_individual = file_exists(cf.union_variants["bcftools"])
     if call_individual:
         vcf_filename = bam.vcf_files.bcftools_union
         vcf_form = "union"
@@ -66,11 +65,13 @@ if 'bcftools' in cf.snps:
         hard_filters = cf.snps.bcftools.__hard_filters
         filters += construct_filters(cf.snps.bcftools.__soft_filters)
         # Merge, sort, and index
-        concat_list = ' '.join(["{cf.vcf_dir}/{bam.SM}.TMP.{chunk}.bcftools.{vcf_form}.vcf.gz".format(**locals()).replace(":","_") for chunk in chrom_chunks])
+        concat_files = ["{cf.vcf_dir}/{bam.SM}.TMP.{chunk}.bcftools.{vcf_form}.vcf.gz".format(**locals()).replace(":","_") for chunk in chrom_chunks]
+        concat_list = ' '.join(concat_files)
         bcftools_concat = """bcftools concat -O z {concat_list} {filters} > {vcf_filename};
                              bcftools index -f {vcf_filename}""".format(**locals())
         cf.command(bcftools_concat)
 
         # Remove temporary files
-        rm_comm = """rm {cf.vcf_dir}/{bam.SM}.TMP.*.bcftools.{vcf_form}.vcf.gz""".format(**locals())
-        cf.command(rm_comm)
+        if file_exists(vcf_filename):
+            comm = "rm " + ' '.join(concat_files + [x + ".csi" for x in concat_files])
+            cf.command(comm)

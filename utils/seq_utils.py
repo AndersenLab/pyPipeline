@@ -14,7 +14,10 @@ class bamfile:
 
     def __init__(self, filename):
         self.header = self.fetch_header(filename)
-        self.RG = self.header["RG"]
+        try:
+            self.RG = self.header["RG"]
+        except:
+            self.RG = None
 
     def fetch_header(self, filename):
         comm = ["samtools", "view", "-H", filename]
@@ -187,5 +190,15 @@ def samtools_stats(filename):
     stats["chksum_qualities"] = chksum[3]
     return stats
 
+
+def check_seq_file(filename):
+    """
+        Check whether a BAM or VCF and
+        its associated indices exists
+    """
+    if filename.endswith(".vcf.gz") or filename.endswith(".bcf"):
+        return file_exists(filename), file_exists(filename + ".csi")
+    if filename.endswith(".bam"):
+        return file_exists(filename), file_exists(filename + ".bai")
 
 

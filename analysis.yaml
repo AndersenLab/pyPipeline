@@ -1,10 +1,15 @@
 OPTIONS:
     cores: 10
     reference: "WS245"
-    fastq_set: "sample_list.txt"
-    analysis_dir: "testing2" # Name of directory that will be created.
-    bam_dir: "bam"
-
+    fastq_set: "FASTQ.txt"
+    bam_dir: bam
+    stat_dir: stat
+    log_dir: log
+    vcf_dir: vcf
+    sample_file: FASTQ.txt
+    union_variants_prefix: union
+    fastq_dir: /Users/dancook/Documents/tmp/FASTQ
+    chrom_chunk_kb: 10000
 
 COMMANDS:
     align:
@@ -14,5 +19,20 @@ COMMANDS:
         alignment_options:
             combine_like_samples: True
             remove_temp: True
+        merge:
+            _flag: "-f"
     snps:
         samtools:
+            -t: "DP,DV,DP4,SP"
+        bcftools:
+            _call_variants_only: "-v"
+            _call_type: "-m"
+            __soft_filters:
+                MIN_DEPTH: 'DP < 3'
+                MAX_DEPTH: 'DP > 2000'
+                LOW_QUAL: 'QUAL < 30'
+            __hard_filters:
+            __heterozygous_polarization: True
+        snp_options:
+            merge_individual_vcfs: True
+            remove_temp: False

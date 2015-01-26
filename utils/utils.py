@@ -195,14 +195,3 @@ def get_column(filename, col_num, delim="\t"):
         return column
     else:
         return []
-
-
-def check_seq_file(filename):
-    """
-        Check whether a BAM or VCF and
-        its associated indices exists
-    """
-    if filename.endswith(".vcf.gz") or filename.endswith(".bcf"):
-        return file_exists(filename), file_exists(filename + ".csi")
-    if filename.endswith(".bam"):
-        return file_exists(filename), file_exists(filename + ".bai")

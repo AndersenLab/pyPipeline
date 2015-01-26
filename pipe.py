@@ -89,7 +89,6 @@ if __name__ == '__main__':
         for bam in sf.check_bams():
             # Check merged bam
             dependency_list = []
-            print pp(bam)
             if bam["bam_merged_exists_and_RG_correct"] is False:
                 # Remove merged bam if it exists (RG is wrong)
                 if file_exists(bam["bam_merged_filename"]):
@@ -100,11 +99,11 @@ if __name__ == '__main__':
                 for ind_bam, ind_bam_exists, fq, RG, ID in zip(bam["bam_ind_filename"],
                                                                    bam["bam_ind_exists_and_RG_correct"],
                                                                    bam["fq"],
-                                                                   bam["raw_RG"],
+                                                                   bam[r"raw_RG"],
                                                                    bam["ID"]):
                     if ind_bam_exists is False:
-                        fq = {"fq1": fq[0], "fq2": fq[1], "ID": ID, "RG": RG, "SM": bam["SM"]}
-                        align = "{run} {script_dir}/align.py {config_file} \"{fq}\"".format(**locals())
+                        fq_pair = {"fq1": fq[0], "fq2": fq[1], "ID": ID, "RG": RG, "SM": bam["SM"]}
+                        align = "{run} {script_dir}/align.py {config_file} \"{fq_pair}\"".format(**locals())
                         jobid = cf.submit_job(align,
                                               analysis_type=analysis_type,
                                               log_name=ID)

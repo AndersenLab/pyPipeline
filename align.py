@@ -19,7 +19,7 @@ from pprint import pprint as pp
 
 truncate_fq = """{stream_fq} {fq_loc} | head -n {cf.debug_fq_number_of_sequences} | gzip > {cf.fastq_dir}/DEBUG_FQ/{fq_filename}"""
 
-bwa = """bwa mem -t {cf.cores} -R '{job.RG}' {cf.align.bwa_options} {cf.reference_file} {fq1_filename} {fq2_filename} | samtools view -@ {cf.cores} -bhu - > {cf.bam_dir}/{job.ID}.unsorted.bam
+bwa = """bwa mem -t {cf.cores} -R __RG__ {cf.align.bwa_options} {cf.reference_file} {fq1_filename} {fq2_filename} | samtools view -@ {cf.cores} -bhu - > {cf.bam_dir}/{job.ID}.unsorted.bam
          samtools sort -@ {cf.cores} -O bam -T {cf.bam_dir}/{tmpname} {cf.bam_dir}/{job.ID}.unsorted.bam > {cf.bam_dir}/{job.ID}.sorted.bam"""
 
 mark_dups = """
@@ -35,6 +35,7 @@ mark_dups = """
 #====================#
 
 job = dotdictify(literal_eval(sys.argv[2]))
+print pp(job)
 cf = config(sys.argv[1])
 
 #=============================#
@@ -78,7 +79,6 @@ eav.entity = job["SM"]
 for fq in ["FQ1", "FQ2"]:
     # Check if fastq file stats already produced.
     if job[fq.lower() + "_cksum"] not in cksum_set:
-        print pp(job), "JOB"
         eav.sub_entity = job[fq]
         eav.attribute = "FASTQ Statistics".format(ID=job["ID"])
         for k, v in extract_fastq_info(job[fq.lower()]).items() + get_fastq_stats(job[fq.lower()]).items():
@@ -101,13 +101,16 @@ if "bwa" in cf.align:
     tmpname = os.path.split(tempfile.mktemp(prefix=job.ID))[1]
     fq1_filename = job["fq1"]
     fq2_filename = job["fq2"]
-    print job
+    print pp(job)
     # Create Directories
     makedir(cf.bam_dir)
     completed_bam = "{cf.bam_dir}/{job.ID}.bam".format(**locals())
     unsorted_bam = "{cf.bam_dir}/{job.ID}.unsorted.bam".format(**locals())
     if not file_exists(completed_bam) and not file_exists(unsorted_bam):
         comm = bwa.format(**locals())
+        print comm
+        comm = comm.replace("__RG__",repr(job.RG))
+        print comm
         cf.command(comm)
         if cf.align.alignment_options.remove_temp == True:
             file_to_delete = "rm {unsorted_bam}".format(**locals())

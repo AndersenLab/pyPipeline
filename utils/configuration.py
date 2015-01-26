@@ -17,7 +17,10 @@ class config:
     def __init__(self, config):
         self.config_filename = config
         self.config_name = config.replace(".yaml", "")
-        self.config = yaml.load(open(config, 'r'))
+        try:
+            self.config = yaml.load(open(config, 'r'))
+        except:
+            msg("Sample File not found", "error")
         script_dir = os.path.dirname(os.path.realpath(__file__)).replace("/utils", "")
 
         self.node_index = 0
@@ -33,7 +36,8 @@ class config:
                              "log_dir",
                              "sample_file",
                              "chrom_chunk_kb",
-                             "cores"]
+                             "cores",
+                             "union_variants_prefix"]
 
         # Check that required options are defined
         for option in self.reqd_options:
@@ -44,7 +48,7 @@ class config:
             if undefined_options:
                 undefined_options = ', '.join(undefined_options)
                 analysis_filename = os.path.split(self.config_filename)[1]
-                raise Exception("You must define OPTION(s) %s in %s" % (undefined_options, analysis_filename))
+                msg("You must define OPTION(s) %s in %s" % (undefined_options, analysis_filename), "error")
 
         # Set Options as base; for directories
         for k, i in self.config["OPTIONS"].items():
@@ -301,7 +305,7 @@ class sample_file:
                 # Add vcf files
                 self.SM_Group_set[SM]["vcf_files"] = {}
                 for caller in config.snp_callers:
-                    for call_type in ["individual", "union", "joint"]:
+                    for call_type in ["individual", "union"]:
                         vcf_ind = "{config.vcf_dir}/{SM}.{caller}.{call_type}.vcf.gz".format(**locals())
                         self.SM_Group_set[SM]["vcf_files"][caller + "_" + call_type] = vcf_ind
 
