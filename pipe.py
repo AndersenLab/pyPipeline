@@ -158,19 +158,23 @@ if __name__ == '__main__':
         # Joint
         #
         dependency_list = []
-        chunks = [x for x in chunk_genome(OPTIONS.chrom_chunk_kb,reference)]
-        for caller in snp_callers:
-            merged_vcf_name = "{vcf_dir}/joint.{caller}.vcf.gz".format(**locals())
-            merged_file_exists = file_exists(merged_vcf_name) and file_exists(merged_vcf_name + ".csi")
-            for chunk in chunks:
+        for caller in cf.snp_callers:
+            joint_vcf_file = "{cf.vcf_dir}/{cf.config_name}.{caller}.joint.vcf.gz".format(**locals())
+            joint_vcf_file_exists = check_seq_file(joint_vcf_file)
+            for chunk in cf.chunk_genome():
+                print chunk
                 # Check that chunk does not exist.
                 chunk_sanitized = chunk.replace(":","_")
-                vcf_file = "{vcf_dir}/TMP.joint.{chunk_sanitized}.{caller}.vcf.gz".format(**locals())
-                if (not file_exists(vcf_file) or not file_exists(vcf_file + ".csi")) and not merged_file_exists:
+                vcf_file = "{cf.vcf_dir}/TMP.{cf.config_name}.joint.{chunk_sanitized}.{caller}.vcf.gz".format(**locals())
+                if not all(check_seq_file(vcf_file)):
                     call_snps = """{run} {script_dir}/call_snps_joint.py {config_file} \"{chunk}\"""".format(**locals())
-                    jobid = submit_job(call_snps)
+                    print call_snps
+                    jobid = cf.submit_job(call_snps,
+                                          log_name=chunk,
+                                          analysis_type=analysis_type,
+                                          dependency_type="afterok")
                     dependency_list.append(jobid)
-        if not merged_file_exists:
+        if not joint_vcf_file_exists:
             merge_snps = """{run} {script_dir}/concat_vcfs_joint.py {config_file}""".format(**locals())
             submit_job(merge_snps, dependency_list)
         else:
