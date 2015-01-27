@@ -1,10 +1,12 @@
 #!/usr/bin/python
-import sys, os
+import sys
+import os
 from ast import literal_eval
 from utils import *
-from commands import *
+from utils.configuration import *
+from utils.seq_utils import *
 import tempfile
-import glob
+from pprint import pprint as pp
 
 
 #====================#
@@ -12,22 +14,27 @@ import glob
 #====================#
 
 cf = config(sys.argv[1])
+sf = cf.get_sample_file()
 
 #=========#
 # Command #
 #=========#
 
 # Merging requires that filters within individual vcfs have passed.
-merge_vcfs = """bcftools concat -O z {vcf_list_string} > {merged_vcf_name};
-                bcftools index -f {merged_vcf_name}"""
+merge_vcfs = """bcftools concat -O z {vcf_list_string} > {joint_vcf_name};
+                bcftools index -f {joint_vcf_name}"""
 
 #=====================#
 # Merge SNP VCF Files #
 #=====================#
 
 for caller in cf.snp_callers:
-    joint_vcf_name = "{vcf_dir}/{cf.analysis_name}.{caller}.joint.vcf.gz".format(**locals())
-    vcf_list = ["{vcf_dir}/TMP.joint.{x}.{caller}.vcf.gz".format(**locals()) for x in cf.chunk_genome()]
+    joint_vcf_name = "{cf.vcf_dir}/{cf.config_name}.{caller}.joint.vcf.gz".format(**locals())
+    vcf_list = []
+    for chunk in cf.chunk_genome():
+        # Check that chunk does not exist.
+        chunk_sanitized = chunk.replace(":","_")
+        vcf_list.append("{cf.vcf_dir}/TMP.{cf.config_name}.joint.{chunk_sanitized}.{caller}.vcf.gz".format(**locals()))
     # Check that all chunks are present.
     for vcf in vcf_list:
         if not file_exists(vcf) or not file_exists(vcf + ".csi"):
@@ -35,11 +42,11 @@ for caller in cf.snp_callers:
     vcf_list_string = ' '.join(vcf_list)
     # Run Merge
     comm = merge_vcfs.format(**locals())
-    command(comm, c_log)
+    cf.command(comm)
 
     # If merge was successful, delete temporary files
-    if file_exists(merged_vcf_name) and file_exists(merged_vcf_name + ".csi"):
+    if all(check_seq_file(joint_vcf_name)):
         for vcf in vcf_list:
             comm = "rm {vcf} && rm {vcf}.csi".format(**locals())
-            command(comm, c_log)
+            cf.command(comm)
 

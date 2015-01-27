@@ -17,7 +17,7 @@ from pprint import pprint as pp
 # Command #
 # ======= #
 
-merge_bams = """samtools merge {merge_options} {bam_dir}/{merged_bam_name} {bam_dir}/{SM_Bams}"""
+merge_bams = """sambamba merge -t {cf.cores} {merge_options} {bam_dir}/{merged_bam_name} {bam_dir}/{SM_Bams}"""
 
 #====================#
 # Load Configuration #

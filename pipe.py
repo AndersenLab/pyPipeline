@@ -128,6 +128,7 @@ if __name__ == '__main__':
         # Get list of bams
         cf.log("Performing Variant Calling")
         # Construct Sample Set
+        dependency_list = []
         for caller in cf.snp_callers:
             union_vcf_file = "{cf.vcf_dir}/{cf.config_name}.{caller}.union.vcf.gz".format(**locals())
             if not all(check_seq_file(union_vcf_file)):
@@ -144,11 +145,11 @@ if __name__ == '__main__':
                                                   analysis_type=analysis_type,
                                                   dependency_type="afterok")
                             dependency_list.append(jobid)
-        # Merge individual bams
+        # Merge individual vcfs
         if cf.snps.snp_options.merge_individual_vcfs == True:
             merge_snps = """{run} {script_dir}/merge_vcfs_individual.py {config_file}""".format(**locals())
             cf.submit_job(merge_snps,
-                      log_name=bam.SM,
+                      log_name="merge_snps",
                       analysis_type=analysis_type,
                       dependencies=dependency_list,
                       dependency_type="afterok")
@@ -161,6 +162,7 @@ if __name__ == '__main__':
         for caller in cf.snp_callers:
             joint_vcf_file = "{cf.vcf_dir}/{cf.config_name}.{caller}.joint.vcf.gz".format(**locals())
             joint_vcf_file_exists = check_seq_file(joint_vcf_file)
+            print joint_vcf_file_exists
             for chunk in cf.chunk_genome():
                 print chunk
                 # Check that chunk does not exist.
@@ -174,9 +176,13 @@ if __name__ == '__main__':
                                           analysis_type=analysis_type,
                                           dependency_type="afterok")
                     dependency_list.append(jobid)
-        if not joint_vcf_file_exists:
+        if not all(joint_vcf_file_exists):
             merge_snps = """{run} {script_dir}/concat_vcfs_joint.py {config_file}""".format(**locals())
-            submit_job(merge_snps, dependency_list)
+            cf.submit_job(merge_snps,
+                          log_name="Merge Joint",
+                          analysis_type=analysis_type,
+                          dependencies=dependency_list,
+                          dependency_type="afterok")
         else:
             print("Merged File Already Exists")
     elif analysis_type == "test":
