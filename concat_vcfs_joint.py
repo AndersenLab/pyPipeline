@@ -21,7 +21,6 @@ cf = config(sys.argv[1])
 merge_vcfs = """bcftools concat -O z {vcf_list_string} > {merged_vcf_name};
                 bcftools index -f {merged_vcf_name}"""
 
-
 #=====================#
 # Merge SNP VCF Files #
 #=====================#

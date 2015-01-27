@@ -20,7 +20,7 @@ from pprint import pprint as pp
 truncate_fq = """{stream_fq} {fq_loc} | head -n {cf.debug_fq_number_of_sequences} | gzip > {cf.fastq_dir}/DEBUG_FQ/{fq_filename}"""
 
 bwa = """bwa mem -t {cf.cores} -R __RG__ {cf.align.bwa_options} {cf.reference_file} {fq1_filename} {fq2_filename} | samtools view -@ {cf.cores} -bhu - > {cf.bam_dir}/{job.ID}.unsorted.bam
-         samtools sort -@ {cf.cores} -O bam -T {cf.bam_dir}/{tmpname} {cf.bam_dir}/{job.ID}.unsorted.bam > {cf.bam_dir}/{job.ID}.sorted.bam"""
+         sambamba sort -t {cf.cores} -o {cf.bam_dir}/{job.ID}.sorted.bam --tmpdir {tmpname} {cf.bam_dir}/{job.ID}.unsorted.bam """
 
 mark_dups = """
             java -jar {script_dir}/tools/picard.jar MarkDuplicates \
