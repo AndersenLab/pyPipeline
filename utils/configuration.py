@@ -36,8 +36,7 @@ class config:
                              "log_dir",
                              "sample_file",
                              "chrom_chunk_kb",
-                             "cores",
-                             "union_variants_prefix"]
+                             "cores"]
 
         # Check that required options are defined
         for option in self.reqd_options:
@@ -66,7 +65,6 @@ class config:
                     # Generate command options
                     opts = self.format_command_options(params)
                     analysis_attr = getattr(self, analysis)
-                    print command, opts, "OPTIONS"
                     setattr(analysis_attr, command + "_options", opts)
                     setattr(self, analysis, analysis_attr)
 
@@ -81,10 +79,11 @@ class config:
         # snp callers
         self.snp_callers = [x for x in self.cmd.snps if x in available_snp_callers]
 
-        # Setup union variant sets
+        # Setup union variant sets (for SNP and INDEL)
         self.union_variants = dotdictify()
         for caller in self.snp_callers:
-            self.union_variants[caller] = "{self.config_name}.{caller}.union_variants.txt".format(**locals())
+            for variant_type in ["ALL","SNP", "INDEL"]:
+                self.union_variants[caller][variant_type] = "{self.config_name}.{variant_type}.{caller}.union_variants.txt".format(**locals())
 
         # Setup Reference Here
         ref_dir = "{script_dir}/genomes/{self.reference}/*f*.gz".format(**locals())
@@ -306,8 +305,9 @@ class sample_file:
                 self.SM_Group_set[SM]["vcf_files"] = {}
                 for caller in config.snp_callers:
                     for call_type in ["individual", "union"]:
-                        vcf_ind = "{config.vcf_dir}/{SM}.{caller}.{call_type}.vcf.gz".format(**locals())
-                        self.SM_Group_set[SM]["vcf_files"][caller + "_" + call_type] = vcf_ind
+                        for variant_type in ["ALL","SNP", "INDEL", "SV", "CNV", "TRANSPOSON"]:
+                            vcf_ind = "{config.vcf_dir}/{SM}.{variant_type}.{caller}.{call_type}.vcf.gz".format(**locals())
+                            self.SM_Group_set[SM]["vcf_files"][caller + "_" + call_type][variant_type] = vcf_ind
 
 
                 # Remove keys incorporated into RG
@@ -357,15 +357,14 @@ class sample_file:
             which reflects
         """
         for bam in self.SM_Group_set.values():
-            print check_seq_file(bam["bam_merged_filename"])
             bam["bam_merged_exists_and_RG_correct"] = False
             bam["bam_ind_exists_and_RG_correct"] = []
-            if all(check_seq_file(bam["bam_merged_filename"])):
+            if check_seq_file(bam["bam_merged_filename"]):
                 if bam["RG"] == bamfile(bam["bam_merged_filename"]).RG:
                     bam["bam_merged_exists_and_RG_correct"] = True
                 bam["bam_ind_exists_and_RG_correct"] = []
             for ind_bam in bam["bam_ind_filename"]:
-                if all(check_seq_file(ind_bam)):
+                if check_seq_file(ind_bam):
                     if bamfile(ind_bam).RG[0] in bam["RG"]:
                         bam["bam_ind_exists_and_RG_correct"].append(True)
                 else:

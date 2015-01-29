@@ -130,15 +130,17 @@ if __name__ == '__main__':
         # Construct Sample Set
         dependency_list = []
         for caller in cf.snp_callers:
-            union_vcf_file = "{cf.vcf_dir}/{cf.config_name}.{caller}.union.vcf.gz".format(**locals())
-            if not all(check_seq_file(union_vcf_file)):
+            union_vcf_file = "{cf.vcf_dir}/{cf.config_name}.ALL.{caller}.union.vcf.gz".format(**locals())
+            if check_seq_file(union_vcf_file) is False:
                 for bam in sf.check_bams():
                     if bam["bam_merged_exists_and_RG_correct"] is False:
                         msg("Bam File or index does not exist: %s" % bam["bam_merged_filename"], "error")
                     else:
                         dependency_list = []
-                        complete_individual = "{cf.vcf_dir}/{bam.SM}.{caller}.individual.vcf.gz".format(**locals())
-                        if not all(check_seq_file(complete_individual)):
+                        complete_individual = "{cf.vcf_dir}/{bam.SM}.ALL.{caller}.union.vcf.gz".format(**locals())
+                        print complete_individual
+                        if check_seq_file(complete_individual) is False:
+                            print "YES"
                             call_snps = """{run} {output_dirs} {script_dir}/call_snps_individual.py {config_file} \"{bam}\"""".format(**locals())
                             jobid = cf.submit_job(call_snps,
                                                   log_name=bam.SM,
@@ -162,15 +164,12 @@ if __name__ == '__main__':
         for caller in cf.snp_callers:
             joint_vcf_file = "{cf.vcf_dir}/{cf.config_name}.{caller}.joint.vcf.gz".format(**locals())
             joint_vcf_file_exists = check_seq_file(joint_vcf_file)
-            print joint_vcf_file_exists
             for chunk in cf.chunk_genome():
-                print chunk
                 # Check that chunk does not exist.
                 chunk_sanitized = chunk.replace(":","_")
                 vcf_file = "{cf.vcf_dir}/TMP.{cf.config_name}.joint.{chunk_sanitized}.{caller}.vcf.gz".format(**locals())
-                if not all(check_seq_file(vcf_file)):
+                if not check_seq_file(vcf_file):
                     call_snps = """{run} {script_dir}/call_snps_joint.py {config_file} \"{chunk}\"""".format(**locals())
-                    print call_snps
                     jobid = cf.submit_job(call_snps,
                                           log_name=chunk,
                                           analysis_type=analysis_type,

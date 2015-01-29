@@ -50,7 +50,7 @@ class dotdictify(dict):
 
 def construct_filters(filter_list, soft=True):
     """ Constructs set of piped filters """
-    if len(filter_list) > 0:
+    if filter_list:
         filter_command = []
         for k, v in filter_list.items():
             if soft is True:

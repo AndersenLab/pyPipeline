@@ -21,12 +21,14 @@ if os.uname()[0] == "Darwin":
     LOCAL = True
     echo = "gecho"
     xargs = "gxargs"
+    sort = "gsort"
     run = "python"
     output_dirs = ""
     stream_fq = "gunzip -kfc"
 else:
     run = "sbatch"
     echo = "echo"
+    sort = "sort"
     LOCAL = False
     xargs = "xargs"
     stream_fq = "zcat"

@@ -197,8 +197,8 @@ def check_seq_file(filename):
         its associated indices exists
     """
     if filename.endswith(".vcf.gz") or filename.endswith(".bcf"):
-        return file_exists(filename), file_exists(filename + ".csi")
+        return all([file_exists(filename), file_exists(filename + ".csi")])
     if filename.endswith(".bam"):
-        return file_exists(filename), file_exists(filename + ".bai")
+        return all([file_exists(filename), file_exists(filename + ".bai")])
 
 

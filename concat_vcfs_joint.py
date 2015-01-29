@@ -45,7 +45,7 @@ for caller in cf.snp_callers:
     cf.command(comm)
 
     # If merge was successful, delete temporary files
-    if all(check_seq_file(joint_vcf_name)):
+    if check_seq_file(joint_vcf_name):
         for vcf in vcf_list:
             comm = "rm {vcf} && rm {vcf}.csi".format(**locals())
             cf.command(comm)
