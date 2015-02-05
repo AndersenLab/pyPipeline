@@ -167,7 +167,7 @@ def coverage(bam, mtchr = None):
         coverage_dict["nuclear"]["Depth of Coverage"] = sum([x["Sum of Depths"] for k, x in coverage_dict.iteritems() if k not in ignore_contigs]) / float(coverage_dict["nuclear"]["Length"])
 
         # Calculate the ratio of mtDNA depth to nuclear depth
-        coverage_dict["genome"]["mt_ratio"] = coverage_dict[mtchr]["Sum of Depths"] / float(coverage_dict["nuclear"]["Depth of Coverage"])
+        coverage_dict["genome"]["mt_ratio"] = coverage_dict[mtchr]["Sum of Depths"] / float(coverage_dict["nuclear"]["Sum of Depths"])
 
     # Flatten Dictionary 
     coverage = []
